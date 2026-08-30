@@ -31,7 +31,7 @@ function writeResult(snapshot: LimitSnapshot, options: CliOptions): void {
   if (options.watch && process.stdout.isTTY) {
     process.stdout.write("\x1B[2J\x1B[H");
   }
-  process.stdout.write(`${formatSnapshot(snapshot)}\n`);
+  process.stdout.write(`${formatSnapshot(snapshot, options.notifyBelow, options.notifyMethod)}\n`);
 }
 
 function reportError(error: unknown): void {
@@ -116,7 +116,16 @@ export async function runCli(args: string[]): Promise<number> {
 
   const options = parsed.options;
   const server = new CodexAppServer(options.codexBin, options.timeoutSeconds * 1_000);
-  const notifier = new ThresholdNotifier(options.notifyBelow, (message) => process.stderr.write(`警告: ${message}\n`));
+  const notifier = new ThresholdNotifier(
+    options.notifyBelow,
+    (message) => process.stderr.write(`警告: ${message}\n`),
+    undefined,
+    options.notifyMethod,
+  );
+  if (options.json && options.notifyBelow !== undefined) {
+    const method = options.notifyMethod === "popup" ? "ポップアップ" : "通知センター";
+    process.stderr.write(`通知設定: 残量 ${options.notifyBelow}% 以下 / 方法: ${method}\n`);
+  }
   let stopping = false;
   let exitCode = 0;
   let wake: (() => void) | undefined;

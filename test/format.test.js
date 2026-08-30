@@ -32,9 +32,19 @@ test("5時間、週次、任意の分・時間・日を表示する", () => {
 test("human表示に取得日時、label、window、残量、使用率、ローカルresetを含める", () => {
   const output = formatSnapshot(snapshotWithDurations([300]));
   assert.match(output, /^取得日時: /);
+  assert.doesNotMatch(output, /通知設定:/);
   assert.match(output, /Named limit \/ primary/);
   assert.match(output, /残量 76\.5%（使用 23\.5%）/);
   assert.match(output, /リセット (?!不明)/);
+});
+
+test("通知閾値を指定すると閾値と方式をhuman表示に含める", () => {
+  const snapshot = snapshotWithDurations([300]);
+  assert.match(formatSnapshot(snapshot, 20), /通知設定: 残量 20% 以下 \/ 方法: ポップアップ/);
+  assert.match(
+    formatSnapshot(snapshot, 15, "notification"),
+    /通知設定: 残量 15% 以下 \/ 方法: 通知センター/,
+  );
 });
 
 test("制限がない場合は明示する", () => {

@@ -15,12 +15,15 @@ export interface LimitSnapshot {
   limits: LimitWindow[];
 }
 
+export type NotifyMethod = "popup" | "notification";
+
 export interface CliOptions {
   watch: boolean;
   intervalSeconds: number;
   json: boolean;
   filter?: string;
   notifyBelow: number | undefined;
+  notifyMethod: NotifyMethod;
   codexBin: string;
   timeoutSeconds: number;
 }

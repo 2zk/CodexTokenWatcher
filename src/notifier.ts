@@ -1,8 +1,10 @@
 import { spawn } from "node:child_process";
-import type { LimitSnapshot, LimitWindow } from "./types.js";
+import type { LimitSnapshot, LimitWindow, NotifyMethod } from "./types.js";
 
-const APPLESCRIPT =
+const POPUP_APPLESCRIPT =
   'on run argv\n  display dialog (item 1 of argv) with title (item 2 of argv) buttons {"閉じる"} default button "閉じる"\nend run';
+const NOTIFICATION_APPLESCRIPT =
+  "on run argv\n  display notification (item 1 of argv) with title (item 2 of argv)\nend run";
 
 export type NotificationExecutor = (file: string, args: string[]) => Promise<unknown>;
 
@@ -31,6 +33,7 @@ export class ThresholdNotifier {
     private readonly threshold: number | undefined,
     private readonly warn: (message: string) => void,
     private readonly execute: NotificationExecutor = defaultNotificationExecutor,
+    private readonly method: NotifyMethod = "popup",
   ) {}
 
   async observe(snapshot: LimitSnapshot): Promise<void> {
@@ -52,12 +55,18 @@ export class ThresholdNotifier {
     const name = limit.limitName ?? limit.limitId;
     const message = `${name} / ${limit.window}: 残量 ${limit.remainingPercent}%（通知閾値 ${this.threshold}% 以下）`;
     try {
-      await this.execute("/usr/bin/osascript", ["-e", APPLESCRIPT, message, "Codex 利用制限"]);
+      await this.execute("/usr/bin/osascript", [
+        "-e",
+        this.method === "popup" ? POPUP_APPLESCRIPT : NOTIFICATION_APPLESCRIPT,
+        message,
+        "Codex 利用制限",
+      ]);
     } catch (error) {
       if (!this.hasWarned) {
         this.hasWarned = true;
         const detail = error instanceof Error ? error.message : String(error);
-        this.warn(`macOS ポップアップを表示できませんでした。監視は継続します: ${detail}`);
+        const target = this.method === "popup" ? "macOS ポップアップ" : "macOS 通知センター通知";
+        this.warn(`${target}を表示できませんでした。監視は継続します: ${detail}`);
       }
     }
   }

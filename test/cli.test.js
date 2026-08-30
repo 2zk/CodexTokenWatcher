@@ -38,6 +38,59 @@ test("one-shot JSONはstdoutにJSON一行だけを出し、診断を混ぜない
   assert.equal(parsed.limits[0].limitId, "codex");
 });
 
+test("人向け出力は通知閾値の指定時だけ設定行を出す", async (t) => {
+  const withNotificationFake = await createFakeCodex(t, "normal");
+  const withNotification = spawnCli([
+    "--notify-below",
+    "20",
+    "--notify-method",
+    "notification",
+    "--codex-bin",
+    withNotificationFake.executablePath,
+  ]);
+  const withNotificationResult = await withNotification.completed;
+
+  assert.equal(withNotificationResult.code, 0);
+  assert.equal(withNotificationResult.stderr, "");
+  assert.match(
+    withNotificationResult.stdout,
+    /通知設定: 残量 20% 以下 \/ 方法: 通知センター/,
+  );
+
+  const withoutNotificationFake = await createFakeCodex(t, "normal");
+  const withoutNotification = spawnCli(["--codex-bin", withoutNotificationFake.executablePath]);
+  const withoutNotificationResult = await withoutNotification.completed;
+
+  assert.equal(withoutNotificationResult.code, 0);
+  assert.equal(withoutNotificationResult.stderr, "");
+  assert.doesNotMatch(withoutNotificationResult.stdout, /通知設定:/);
+});
+
+test("one-shot JSONは通知設定をstderrへ1回だけ出し、stdoutのスキーマを変えない", async (t) => {
+  const fake = await createFakeCodex(t, "normal");
+  const run = spawnCli([
+    "--json",
+    "--notify-below",
+    "20",
+    "--notify-method",
+    "notification",
+    "--codex-bin",
+    fake.executablePath,
+  ]);
+  const result = await run.completed;
+
+  assert.equal(result.code, 0);
+  const lines = result.stdout.trimEnd().split("\n");
+  assert.equal(lines.length, 1);
+  const parsed = JSON.parse(lines[0]);
+  assert.deepEqual(Object.keys(parsed).sort(), ["limits", "observedAt", "schemaVersion"]);
+  assert.equal("notifyBelow" in parsed, false);
+  assert.equal("notifyMethod" in parsed, false);
+  assert.deepEqual(result.stderr.trimEnd().split("\n"), [
+    "通知設定: 残量 20% 以下 / 方法: 通知センター",
+  ]);
+});
+
 test("filterは大文字・小文字を区別せず、JSONに一致するlimitだけを出す", async (t) => {
   const fake = await createFakeCodex(t, "filter-multiple");
   const run = spawnCli(["--json", "--filter", "fAkE cOdEx / PrImArY", "--codex-bin", fake.executablePath]);
@@ -54,7 +107,16 @@ test("filterは大文字・小文字を区別せず、JSONに一致するlimit�
 
 test("update burstをdebounceし、pollを重複させず、SIGINTでchild stdinを閉じて130終了する", async (t) => {
   const fake = await createFakeCodex(t, "updated-burst");
-  const run = spawnCli(["--watch", "--json", "--interval", "60", "--codex-bin", fake.executablePath]);
+  const run = spawnCli([
+    "--watch",
+    "--json",
+    "--interval",
+    "60",
+    "--notify-below",
+    "20",
+    "--codex-bin",
+    fake.executablePath,
+  ]);
 
   await waitUntil(() => {
     const lines = run.stdout().trim().split("\n").filter(Boolean);
@@ -69,6 +131,8 @@ test("update burstをdebounceし、pollを重複させず、SIGINTでchild stdin
   for (const line of outputLines) {
     assert.equal(JSON.parse(line).schemaVersion, 1);
   }
+  assert.equal(result.stderr.match(/通知設定:/g)?.length, 1);
+  assert.match(result.stderr, /通知設定: 残量 20% 以下 \/ 方法: ポップアップ/);
   assert.match(result.stderr, /SIGINT を受信したため終了処理を開始します/);
 
   const events = await waitUntil(async () => {
@@ -123,7 +187,11 @@ test("help/versionと引数エラーのexit codeをCLI境界でも維持する",
   const helpResult = await help.completed;
   assert.equal(helpResult.code, 0);
   assert.match(helpResult.stdout, /既定: 180、60以上の整数/);
-  assert.match(helpResult.stdout, /--notify-below <percent>\s+残量が指定値以下なら macOS ポップアップ/);
+  assert.match(helpResult.stdout, /--notify-below <percent>\s+残量が指定値以下なら通知する（0〜100）/);
+  assert.match(
+    helpResult.stdout,
+    /--notify-method <method>\s+通知方式: popup または notification（既定: popup）/,
+  );
 
   const version = spawnCli(["--version"]);
   const versionResult = await version.completed;

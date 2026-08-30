@@ -109,6 +109,31 @@ test("閉じるまで残るAppleScriptダイアログへ通知値をargvで渡�
   assert.doesNotMatch(args[1], /giving up after/);
   assert.equal(args[1].includes("Named Codex"), false);
   assert.equal(args[1].includes("12%"), false);
+  assert.equal(args[1].includes("13%"), false);
+  assert.equal(args[1].includes("Codex 利用制限"), false);
+  assert.equal(args[2], "Named Codex / primary: 残量 12%（通知閾値 13% 以下）");
+  assert.equal(args[3], "Codex 利用制限");
+  assert.equal(args.length, 4);
+});
+
+test("通知センター用AppleScriptへ通知値をargvで渡す", async () => {
+  const recorder = recordingExecutor();
+  const notifier = new ThresholdNotifier(13, () => {}, recorder.execute, "notification");
+  await notifier.observe(
+    makeSnapshot(makeLimit({ limitId: "codex", limitName: "Named Codex", remainingPercent: 12 })),
+  );
+
+  assert.equal(recorder.calls.length, 1);
+  const [{ file, args }] = recorder.calls;
+  assert.equal(file, "/usr/bin/osascript");
+  assert.equal(args[0], "-e");
+  assert.match(args[1], /on run argv/);
+  assert.match(args[1], /display notification \(item 1 of argv\) with title \(item 2 of argv\)/);
+  assert.doesNotMatch(args[1], /display dialog/);
+  assert.equal(args[1].includes("Named Codex"), false);
+  assert.equal(args[1].includes("12%"), false);
+  assert.equal(args[1].includes("13%"), false);
+  assert.equal(args[1].includes("Codex 利用制限"), false);
   assert.equal(args[2], "Named Codex / primary: 残量 12%（通知閾値 13% 以下）");
   assert.equal(args[3], "Codex 利用制限");
   assert.equal(args.length, 4);
@@ -138,4 +163,22 @@ test("executor失敗は一度だけ警告し、残りのwindow観測を継続す
   );
   assert.equal(recorder.calls.length, 3);
   assert.equal(warnings.length, 1);
+});
+
+test("notificationのexecutor失敗は通知センター方式の警告にする", async () => {
+  const warnings = [];
+  const recorder = recordingExecutor({ failure: new Error("synthetic executor failure") });
+  const notifier = new ThresholdNotifier(
+    20,
+    (message) => warnings.push(message),
+    recorder.execute,
+    "notification",
+  );
+
+  await assert.doesNotReject(
+    notifier.observe(makeSnapshot(makeLimit({ remainingPercent: 10 }))),
+  );
+  assert.deepEqual(warnings, [
+    "macOS 通知センター通知を表示できませんでした。監視は継続します: synthetic executor failure",
+  ]);
 });
