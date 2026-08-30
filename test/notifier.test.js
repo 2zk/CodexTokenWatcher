@@ -91,7 +91,7 @@ test("belowのままでもresetsAtが変わった新期間では再通知する"
   assert.equal(recorder.calls.length, 2);
 });
 
-test("通知値はAppleScript本文へ埋め込まずosascriptのargvとして渡す", async () => {
+test("閉じるまで残るAppleScriptダイアログへ通知値をargvで渡す", async () => {
   const recorder = recordingExecutor();
   const notifier = new ThresholdNotifier(13, () => {}, recorder.execute);
   await notifier.observe(
@@ -103,7 +103,10 @@ test("通知値はAppleScript本文へ埋め込まずosascriptのargvとして�
   assert.equal(file, "/usr/bin/osascript");
   assert.equal(args[0], "-e");
   assert.match(args[1], /on run argv/);
-  assert.match(args[1], /item 1 of argv/);
+  assert.match(args[1], /display dialog \(item 1 of argv\) with title \(item 2 of argv\)/);
+  assert.doesNotMatch(args[1], /display notification/);
+  assert.match(args[1], /buttons \{"閉じる"\} default button "閉じる"/);
+  assert.doesNotMatch(args[1], /giving up after/);
   assert.equal(args[1].includes("Named Codex"), false);
   assert.equal(args[1].includes("12%"), false);
   assert.equal(args[2], "Named Codex / primary: 残量 12%（通知閾値 13% 以下）");
@@ -123,7 +126,10 @@ test("executor失敗は一度だけ警告し、残りのwindow観測を継続す
   await assert.doesNotReject(notifier.observe(snapshot));
   assert.equal(recorder.calls.length, 2);
   assert.equal(warnings.length, 1);
-  assert.match(warnings[0], /監視は継続します: synthetic executor failure/);
+  assert.match(
+    warnings[0],
+    /^macOS ポップアップを表示できませんでした。監視は継続します: synthetic executor failure$/,
+  );
 
   await assert.doesNotReject(
     notifier.observe(

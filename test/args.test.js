@@ -73,4 +73,5 @@ test("help と version は即時結果を返す", () => {
   assert.deepEqual(parseArgs(["--help"]), { kind: "help" });
   assert.deepEqual(parseArgs(["--version"]), { kind: "version" });
   assert.match(helpText(), /既定: 180、60以上の整数/);
+  assert.match(helpText(), /--notify-below <percent>\s+残量が指定値以下なら macOS ポップアップ/);
 });

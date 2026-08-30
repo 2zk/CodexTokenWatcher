@@ -1,13 +1,22 @@
-import { execFile } from "node:child_process";
-import { promisify } from "node:util";
+import { spawn } from "node:child_process";
 import type { LimitSnapshot, LimitWindow } from "./types.js";
 
-const execFileAsync = promisify(execFile);
-const APPLESCRIPT = 'on run argv\n  display notification (item 1 of argv) with title (item 2 of argv)\nend run';
+const APPLESCRIPT =
+  'on run argv\n  display dialog (item 1 of argv) with title (item 2 of argv) buttons {"閉じる"} default button "閉じる"\nend run';
 
 export type NotificationExecutor = (file: string, args: string[]) => Promise<unknown>;
 
-const defaultNotificationExecutor: NotificationExecutor = (file, args) => execFileAsync(file, args);
+const defaultNotificationExecutor: NotificationExecutor = (file, args) =>
+  new Promise<void>((resolve, reject) => {
+    try {
+      const child = spawn(file, args, { detached: true, stdio: "ignore" });
+      child.unref();
+      child.once("error", reject);
+      child.once("spawn", resolve);
+    } catch (error) {
+      reject(error);
+    }
+  });
 
 interface NotificationState {
   below: boolean;
@@ -48,7 +57,7 @@ export class ThresholdNotifier {
       if (!this.hasWarned) {
         this.hasWarned = true;
         const detail = error instanceof Error ? error.message : String(error);
-        this.warn(`macOS 通知を表示できませんでした。監視は継続します: ${detail}`);
+        this.warn(`macOS ポップアップを表示できませんでした。監視は継続します: ${detail}`);
       }
     }
   }

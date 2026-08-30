@@ -123,6 +123,7 @@ test("help/versionと引数エラーのexit codeをCLI境界でも維持する",
   const helpResult = await help.completed;
   assert.equal(helpResult.code, 0);
   assert.match(helpResult.stdout, /既定: 180、60以上の整数/);
+  assert.match(helpResult.stdout, /--notify-below <percent>\s+残量が指定値以下なら macOS ポップアップ/);
 
   const version = spawnCli(["--version"]);
   const versionResult = await version.completed;
