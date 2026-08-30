@@ -4,7 +4,8 @@ import { helpText, parseArgs } from "../dist/args.js";
 import { CliUsageError } from "../dist/types.js";
 
 test("引数なしの既定値は one-shot、interval 180秒、timeout 15秒", () => {
-  assert.deepEqual(parseArgs([]), {
+  const parsed = parseArgs([]);
+  assert.deepEqual(parsed, {
     kind: "run",
     options: {
       watch: false,
@@ -15,6 +16,11 @@ test("引数なしの既定値は one-shot、interval 180秒、timeout 15秒", (
       timeoutSeconds: 15,
     },
   });
+  assert.equal(parsed.options.filter, undefined);
+});
+
+test("filter は指定した文字列を保持する", () => {
+  assert.equal(parseArgs(["--filter", "codex / primary"]).options.filter, "codex / primary");
 });
 
 test("interval は60以上の整数を受理する", () => {
@@ -56,6 +62,7 @@ for (const args of [
   ["--interval"],
   ["--timeout", "--json"],
   ["--codex-bin"],
+  ["--filter"],
 ]) {
   test(`不正な引数 ${args.join(" ")} を使用法エラーにする`, () => {
     assert.throws(() => parseArgs(args), (error) => error instanceof CliUsageError && error.exitCode === 2);

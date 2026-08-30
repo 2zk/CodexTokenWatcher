@@ -38,6 +38,20 @@ test("one-shot JSONはstdoutにJSON一行だけを出し、診断を混ぜない
   assert.equal(parsed.limits[0].limitId, "codex");
 });
 
+test("filterは大文字・小文字を区別せず、JSONに一致するlimitだけを出す", async (t) => {
+  const fake = await createFakeCodex(t, "filter-multiple");
+  const run = spawnCli(["--json", "--filter", "fAkE cOdEx / PrImArY", "--codex-bin", fake.executablePath]);
+  const result = await run.completed;
+
+  assert.equal(result.code, 0);
+  assert.equal(result.stderr, "");
+  const parsed = JSON.parse(result.stdout);
+  assert.equal(parsed.limits.length, 1);
+  assert.equal(parsed.limits[0].limitId, "codex");
+  assert.equal(parsed.limits[0].limitName, "Fake Codex");
+  assert.equal(parsed.limits[0].window, "primary");
+});
+
 test("update burstをdebounceし、pollを重複させず、SIGINTでchild stdinを閉じて130終了する", async (t) => {
   const fake = await createFakeCodex(t, "updated-burst");
   const run = spawnCli(["--watch", "--json", "--interval", "60", "--codex-bin", fake.executablePath]);
@@ -120,4 +134,10 @@ test("help/versionと引数エラーのexit codeをCLI境界でも維持する",
   assert.equal(invalidResult.code, 2);
   assert.equal(invalidResult.stdout, "");
   assert.match(invalidResult.stderr, /60 以上の整数/);
+
+  const missingFilter = spawnCli(["--filter"]);
+  const missingFilterResult = await missingFilter.completed;
+  assert.equal(missingFilterResult.code, 2);
+  assert.equal(missingFilterResult.stdout, "");
+  assert.match(missingFilterResult.stderr, /--filter には値が必要/);
 });

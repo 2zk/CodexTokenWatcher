@@ -12,6 +12,17 @@ import { AppServerError, CliUsageError, type CliOptions, type LimitSnapshot } fr
 const VERSION = "0.1.0";
 const UPDATE_DEBOUNCE_MS = 500;
 
+function filterSnapshot(snapshot: LimitSnapshot, filter: string | undefined): LimitSnapshot {
+  if (filter === undefined) return snapshot;
+
+  const normalizedFilter = filter.toLowerCase();
+  return {
+    ...snapshot,
+    limits: snapshot.limits.filter((limit) =>
+      `${limit.limitName ?? limit.limitId} / ${limit.window}`.toLowerCase().includes(normalizedFilter)),
+  };
+}
+
 function writeResult(snapshot: LimitSnapshot, options: CliOptions): void {
   if (options.json) {
     process.stdout.write(`${formatJson(snapshot)}\n`);
@@ -47,7 +58,7 @@ async function runWatch(
   try {
     while (!shouldStop()) {
       const result = await server.readRateLimits();
-      const snapshot = normalizeRateLimits(result);
+      const snapshot = filterSnapshot(normalizeRateLimits(result), options.filter);
       writeResult(snapshot, options);
       await notifier.observe(snapshot);
       if (shouldStop()) break;
@@ -135,7 +146,7 @@ export async function runCli(args: string[]): Promise<number> {
       });
     } else {
       const result = await server.readRateLimits();
-      const snapshot = normalizeRateLimits(result);
+      const snapshot = filterSnapshot(normalizeRateLimits(result), options.filter);
       writeResult(snapshot, options);
       await notifier.observe(snapshot);
     }

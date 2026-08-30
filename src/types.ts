@@ -19,6 +19,7 @@ export interface CliOptions {
   watch: boolean;
   intervalSeconds: number;
   json: boolean;
+  filter?: string;
   notifyBelow: number | undefined;
   codexBin: string;
   timeoutSeconds: number;

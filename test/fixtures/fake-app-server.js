@@ -47,6 +47,13 @@ export function runFakeAppServer({ scenario, capturePath }) {
           windowDurationMins: 300,
           resetsAt: 1_800_000_000,
         },
+        ...(scenario === "filter-multiple" ? {
+          secondary: {
+            usedPercent: slot + 10,
+            windowDurationMins: 10_080,
+            resetsAt: 1_800_604_800,
+          },
+        } : {}),
       },
     },
     slot,

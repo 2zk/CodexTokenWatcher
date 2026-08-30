@@ -6,6 +6,7 @@ const HELP = `使い方: codex-token-watcher [options]
   --watch                    Ctrl+C まで定期的に取得する
   --interval <seconds>       取得間隔（既定: 180、60以上の整数）
   --json                     one-shot は JSON、watch は NDJSON で出力する
+  --filter <text>            表示名と期間を部分一致で絞り込む（大文字・小文字を区別しない）
   --notify-below <percent>   残量が指定値以下なら macOS 通知（0〜100）
   --codex-bin <path>         Codex 実行ファイル（既定: codex）
   --timeout <seconds>        RPC タイムアウト（既定: 15、正整数）
@@ -59,6 +60,10 @@ export function parseArgs(args: string[]): ParseResult {
         break;
       case "--json":
         options.json = true;
+        break;
+      case "--filter":
+        options.filter = requiredValue(args, index, arg);
+        index += 1;
         break;
       case "--interval":
         options.intervalSeconds = integer(requiredValue(args, index, arg), arg, 60);

@@ -31,6 +31,9 @@ codex-token-watcher
 # JSON で1回取得
 codex-token-watcher --json
 
+# 表示名と期間で絞り込む（大文字・小文字を区別しない部分一致）
+codex-token-watcher --filter "codex / primary"
+
 # 180秒ごと（既定）に表示。Ctrl+C で終了
 codex-token-watcher --watch
 
@@ -48,6 +51,8 @@ codex-token-watcher --timeout 30
 ```
 
 `--interval` は 60 以上の整数だけを受け付け、既定は 180 秒。`--timeout` は正整数だけを受け付ける。
+
+`--filter <text>` を指定すると、各制限の表示名（`limitName` がなければ `limitId`）と期間（`primary` / `secondary`）を連結した文字列に対し、大文字・小文字を区別しない部分一致で絞り込む。省略時はすべての制限を表示する。フィルタは人向け表示、JSON/NDJSON、通知の対象に共通で適用される。
 
 TTY 上の `--watch` は前回表示を更新する。パイプやリダイレクトなど非TTYでは、スナップショットを追記する。JSON 出力では one-shot は1個の JSON オブジェクト、watch は1行に1個の JSON（NDJSON）になる。診断と警告は標準エラー出力へ出るため、JSON の標準出力には混ざらない。
 
