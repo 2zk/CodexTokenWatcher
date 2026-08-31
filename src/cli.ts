@@ -124,7 +124,7 @@ export async function runCli(args: string[]): Promise<number> {
   );
   if (options.json && options.notifyBelow !== undefined) {
     const method = options.notifyMethod === "popup" ? "ポップアップ" : "通知センター";
-    process.stderr.write(`通知設定: 残量 ${options.notifyBelow}% 以下 / 方法: ${method}\n`);
+    process.stderr.write(`通知設定: 残量 ${options.notifyBelow}% 以下 / 通知方法: ${method}\n`);
   }
   let stopping = false;
   let exitCode = 0;

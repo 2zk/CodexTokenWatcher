@@ -31,20 +31,36 @@ test("5時間、週次、任意の分・時間・日を表示する", () => {
 
 test("human表示に取得日時、label、window、残量、使用率、ローカルresetを含める", () => {
   const output = formatSnapshot(snapshotWithDurations([300]));
-  assert.match(output, /^取得日時: /);
+  const lines = output.split("\n");
+  assert.match(lines[0], /^取得日時: [^\n]+$/);
+  assert.match(lines[1], /^Named limit \/ primary/);
   assert.doesNotMatch(output, /通知設定:/);
   assert.match(output, /Named limit \/ primary/);
   assert.match(output, /残量 76\.5%（使用 23\.5%）/);
   assert.match(output, /リセット (?!不明)/);
 });
 
-test("通知閾値を指定すると閾値と方式をhuman表示に含める", () => {
+test("通知閾値を指定すると取得日時行に閾値と通知センター方式を含める", () => {
   const snapshot = snapshotWithDurations([300]);
-  assert.match(formatSnapshot(snapshot, 20), /通知設定: 残量 20% 以下 \/ 方法: ポップアップ/);
+  const lines = formatSnapshot(snapshot, 70, "notification").split("\n");
+
+  assert.equal(lines.length, 2);
   assert.match(
-    formatSnapshot(snapshot, 15, "notification"),
-    /通知設定: 残量 15% 以下 \/ 方法: 通知センター/,
+    lines[0],
+    /^取得日時: [^\n]+ 【通知設定: 残量 70% 以下 \/ 通知方法: 通知センター】$/,
   );
+  assert.match(lines[1], /^Named limit \/ primary \/ 5時間:/);
+  assert.doesNotMatch(lines[1], /通知設定:/);
+});
+
+test("popup方式は取得日時行にポップアップと表示する", () => {
+  const lines = formatSnapshot(snapshotWithDurations([300]), 20).split("\n");
+
+  assert.match(
+    lines[0],
+    /^取得日時: [^\n]+ 【通知設定: 残量 20% 以下 \/ 通知方法: ポップアップ】$/,
+  );
+  assert.equal(lines.filter((line) => line.includes("通知設定:")).length, 1);
 });
 
 test("制限がない場合は明示する", () => {

@@ -38,7 +38,7 @@ test("one-shot JSONはstdoutにJSON一行だけを出し、診断を混ぜない
   assert.equal(parsed.limits[0].limitId, "codex");
 });
 
-test("人向け出力は通知閾値の指定時だけ設定行を出す", async (t) => {
+test("人向け出力は通知閾値の指定時だけ取得日時行に設定を含める", async (t) => {
   const withNotificationFake = await createFakeCodex(t, "normal");
   const withNotification = spawnCli([
     "--notify-below",
@@ -52,10 +52,12 @@ test("人向け出力は通知閾値の指定時だけ設定行を出す", async
 
   assert.equal(withNotificationResult.code, 0);
   assert.equal(withNotificationResult.stderr, "");
+  const withNotificationLines = withNotificationResult.stdout.trimEnd().split("\n");
   assert.match(
-    withNotificationResult.stdout,
-    /通知設定: 残量 20% 以下 \/ 方法: 通知センター/,
+    withNotificationLines[0],
+    /^取得日時: [^\n]+ 【通知設定: 残量 20% 以下 \/ 通知方法: 通知センター】$/,
   );
+  assert.doesNotMatch(withNotificationLines.slice(1).join("\n"), /通知設定:/);
 
   const withoutNotificationFake = await createFakeCodex(t, "normal");
   const withoutNotification = spawnCli(["--codex-bin", withoutNotificationFake.executablePath]);
@@ -63,6 +65,7 @@ test("人向け出力は通知閾値の指定時だけ設定行を出す", async
 
   assert.equal(withoutNotificationResult.code, 0);
   assert.equal(withoutNotificationResult.stderr, "");
+  assert.match(withoutNotificationResult.stdout.split("\n")[0], /^取得日時: [^\n]+$/);
   assert.doesNotMatch(withoutNotificationResult.stdout, /通知設定:/);
 });
 
@@ -87,7 +90,7 @@ test("one-shot JSONは通知設定をstderrへ1回だけ出し、stdoutのスキ
   assert.equal("notifyBelow" in parsed, false);
   assert.equal("notifyMethod" in parsed, false);
   assert.deepEqual(result.stderr.trimEnd().split("\n"), [
-    "通知設定: 残量 20% 以下 / 方法: 通知センター",
+    "通知設定: 残量 20% 以下 / 通知方法: 通知センター",
   ]);
 });
 
@@ -129,10 +132,14 @@ test("update burstをdebounceし、pollを重複させず、SIGINTでchild stdin
   const outputLines = result.stdout.trim().split("\n").filter(Boolean);
   assert.equal(outputLines.length, 2);
   for (const line of outputLines) {
-    assert.equal(JSON.parse(line).schemaVersion, 1);
+    const parsed = JSON.parse(line);
+    assert.equal(parsed.schemaVersion, 1);
+    assert.deepEqual(Object.keys(parsed).sort(), ["limits", "observedAt", "schemaVersion"]);
+    assert.equal("notifyBelow" in parsed, false);
+    assert.equal("notifyMethod" in parsed, false);
   }
   assert.equal(result.stderr.match(/通知設定:/g)?.length, 1);
-  assert.match(result.stderr, /通知設定: 残量 20% 以下 \/ 方法: ポップアップ/);
+  assert.match(result.stderr, /通知設定: 残量 20% 以下 \/ 通知方法: ポップアップ/);
   assert.match(result.stderr, /SIGINT を受信したため終了処理を開始します/);
 
   const events = await waitUntil(async () => {

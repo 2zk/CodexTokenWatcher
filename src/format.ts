@@ -30,11 +30,10 @@ export function formatSnapshot(
   notifyBelow: number | undefined = undefined,
   notifyMethod: NotifyMethod = "popup",
 ): string {
-  const lines = [`取得日時: ${resetAt(snapshot.observedAt)}`];
-  if (notifyBelow !== undefined) {
-    const method = notifyMethod === "popup" ? "ポップアップ" : "通知センター";
-    lines.push(`通知設定: 残量 ${notifyBelow}% 以下 / 方法: ${method}`);
-  }
+  const notification = notifyBelow === undefined
+    ? ""
+    : ` 【通知設定: 残量 ${notifyBelow}% 以下 / 通知方法: ${notifyMethod === "popup" ? "ポップアップ" : "通知センター"}】`;
+  const lines = [`取得日時: ${resetAt(snapshot.observedAt)}${notification}`];
   if (snapshot.limits.length === 0) {
     lines.push("表示可能な利用制限は返されませんでした。");
     return lines.join("\n");
