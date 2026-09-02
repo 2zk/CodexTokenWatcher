@@ -1,0 +1,44 @@
+function percent(value) {
+    return `${Number.isInteger(value) ? value : value.toFixed(1)}%`;
+}
+function duration(value) {
+    if (value === null)
+        return "不明";
+    if (value === 300)
+        return "5時間";
+    if (value === 10_080)
+        return "7日（週次）";
+    if (value % 1_440 === 0)
+        return `${value / 1_440}日`;
+    if (value % 60 === 0)
+        return `${value / 60}時間`;
+    return `${value}分`;
+}
+function resetAt(value) {
+    if (value === null)
+        return "不明";
+    return new Intl.DateTimeFormat("ja-JP", {
+        dateStyle: "medium",
+        timeStyle: "medium",
+    }).format(new Date(value));
+}
+function label(limit) {
+    return limit.limitName ?? limit.limitId;
+}
+export function formatSnapshot(snapshot, notifyBelow = undefined, notifyMethod = "popup") {
+    const notification = notifyBelow === undefined
+        ? ""
+        : ` 【通知設定: 残量 ${notifyBelow}% 以下 / 通知方法: ${notifyMethod === "popup" ? "ポップアップ" : "通知センター"}】`;
+    const lines = [`取得日時: ${resetAt(snapshot.observedAt)}${notification}`];
+    if (snapshot.limits.length === 0) {
+        lines.push("表示可能な利用制限は返されませんでした。");
+        return lines.join("\n");
+    }
+    for (const limit of snapshot.limits) {
+        lines.push(`${label(limit)} / ${limit.window} / ${duration(limit.windowDurationMins)}: 残量 ${percent(limit.remainingPercent)}（使用 ${percent(limit.usedPercent)}）/ リセット ${resetAt(limit.resetsAt)}`);
+    }
+    return lines.join("\n");
+}
+export function formatJson(snapshot) {
+    return JSON.stringify(snapshot);
+}

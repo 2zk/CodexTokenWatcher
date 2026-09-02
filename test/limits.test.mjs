@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { normalizeRateLimits } from "../dist/limits.js";
+import { normalizeRateLimits } from "../dist/limits.mjs";
 
 const observedAt = new Date("2026-08-30T00:00:00.000Z");
 

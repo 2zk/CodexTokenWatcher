@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { ThresholdNotifier } from "../dist/notifier.js";
+import { ThresholdNotifier } from "../dist/notifier.mjs";
 
 function makeLimit({
   limitId = "codex",

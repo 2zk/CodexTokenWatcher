@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import { once } from "node:events";
 import test from "node:test";
-import { CodexAppServer } from "../dist/app-server.js";
-import { AppServerError } from "../dist/types.js";
-import { createFakeCodex, readCapturedEvents, waitUntil } from "./helpers/fake-codex.js";
+import { CodexAppServer } from "../dist/app-server.mjs";
+import { AppServerError } from "../dist/types.mjs";
+import { createFakeCodex, readCapturedEvents, waitUntil } from "./helpers/fake-codex.mjs";
 
 async function startedServer(testContext, scenario, timeoutMs = 2_000) {
   const fake = await createFakeCodex(testContext, scenario);

@@ -1,6 +1,6 @@
 # codex-token-watcher
 
-Codex の app-server から、現在表示できる利用制限の残量を取得する macOS 向け TypeScript CLI。
+Codex の app-server から、現在表示できる利用制限の残量を取得する macOS 向け Node.js CLI。
 
 `primary` と `secondary` を含め、app-server が返したすべての制限期間を表示する。返されなかった期間を推測して表示することはない。
 
@@ -12,48 +12,48 @@ Codex の app-server から、現在表示できる利用制限の残量を取�
 
 このツールは認証情報を読まず、`codex app-server` が既存ログイン状態を利用する。API キーのみ、または Bedrock などの認証では、Codex service-backed の利用量を取得できない場合がある。
 
-## インストールとビルド
+## 使い始める
 
 ```sh
-npm ci
-npm run build
-npm link
+git clone https://github.com/2zk/CodexTokenWatcher.git
+cd CodexTokenWatcher
+./codex-token-watcher
 ```
 
-`npm link` 後は `codex-token-watcher` として実行できる。リンクせずに実行する場合は `node dist/cli.js` を使う。
+clone 後のパッケージインストールやビルドは不要。リポジトリに含まれるNode.js実装を直接実行する。
 
 ## 使い方
 
 ```sh
 # 1回だけ、人向けの表示で取得
-codex-token-watcher
+./codex-token-watcher
 
 # JSON で1回取得
-codex-token-watcher --json
+./codex-token-watcher --json
 
 # 表示名と期間で絞り込む（大文字・小文字を区別しない部分一致）
-codex-token-watcher --filter "codex / primary"
+./codex-token-watcher --filter "codex / primary"
 
 # 180秒ごと（既定）に表示。Ctrl+C で終了
-codex-token-watcher --watch
+./codex-token-watcher --watch
 
 # 5分ごとに表示
-codex-token-watcher --watch --interval 300
+./codex-token-watcher --watch --interval 300
 
 # watch と組み合わせて NDJSON を標準出力へ追記
-codex-token-watcher --watch --json
+./codex-token-watcher --watch --json
 
 # Codex コマンドのパスを明示
-codex-token-watcher --codex-bin /opt/homebrew/bin/codex
+./codex-token-watcher --codex-bin /opt/homebrew/bin/codex
 
 # app-server 応答の待機時間を30秒にする
-codex-token-watcher --timeout 30
+./codex-token-watcher --timeout 30
 
 # 残量20%以下でポップアップを表示（既定の通知方式）
-codex-token-watcher --watch --notify-below 20
+./codex-token-watcher --watch --notify-below 20
 
 # 残量20%以下で通知センターに通知を出す
-codex-token-watcher --watch --notify-below 20 --notify-method notification
+./codex-token-watcher --watch --notify-below 20 --notify-method notification
 ```
 
 `--interval` は 60 以上の整数だけを受け付け、既定は 180 秒。`--timeout` は正整数だけを受け付ける。
@@ -70,22 +70,24 @@ TTY 上の `--watch` は前回表示を更新する。パイプやリダイレ�
 
 ```sh
 # 閉じるまで残るポップアップ（既定）
-codex-token-watcher --watch --notify-below 20
+./codex-token-watcher --watch --notify-below 20
 
 # ディスプレイ右上の通知センター通知
-codex-token-watcher --watch --notify-below 20 --notify-method notification
+./codex-token-watcher --watch --notify-below 20 --notify-method notification
 ```
 
 最初の取得時に閾値以下であれば通知する。以後は上から下へ閾値をまたいだときだけ通知し、回復後に再低下した場合、またはリセット時刻が変わった新しい制限期間では再び通知する。同じ状態での繰り返し通知はしない。`popup` は「閉じる」ボタンを押すまで表示される。`notification` は macOS の通知センターへ表示され、通知の許可や表示スタイルは「システム設定 → 通知」で設定できる。表示に失敗しても監視は継続する。
 
 どちらの方式でも、通知表示中に監視と1回実行の終了を待たない。
 
-## 開発
+## 開発とテスト
+
+テストはNode.js標準のテストランナーで実行する。
 
 ```sh
-npm run typecheck
-npm run build
-npm test
+node --test
 ```
+
+直接CLIを実行する場合は `node dist/cli.mjs` を使う。
 
 app-server のプロトコルは [OpenAI 公式 app-server ドキュメント](https://learn.chatgpt.com/docs/app-server) に基づく。接続時は `initialize` の成功後に `initialized` を送り、`account/rateLimits/read` と `account/rateLimits/updated` を利用する。

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { formatJson, formatSnapshot } from "../dist/format.js";
+import { formatJson, formatSnapshot } from "../dist/format.mjs";
 
 function snapshotWithDurations(durations) {
   return {

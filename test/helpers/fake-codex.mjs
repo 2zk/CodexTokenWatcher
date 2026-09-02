@@ -2,7 +2,7 @@ import { chmod, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-const fixtureUrl = new URL("../fixtures/fake-app-server.js", import.meta.url).href;
+const fixtureUrl = new URL("../fixtures/fake-app-server.mjs", import.meta.url).href;
 
 export async function createFakeCodex(testContext, scenario) {
   const directory = await mkdtemp(join(tmpdir(), "codex-token-watcher-test-"));
