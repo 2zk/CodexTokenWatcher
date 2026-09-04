@@ -91,6 +91,81 @@ test("belowのままでもresetsAtが変わった新期間では再通知する"
   assert.equal(recorder.calls.length, 2);
 });
 
+test("刻み通知の初回観測では到達済み段階を通知せず、次の未到達段階への下降で通知する", async () => {
+  const recorder = recordingExecutor();
+  const notifier = new ThresholdNotifier(undefined, () => {}, recorder.execute, "popup", 20);
+
+  await notifier.observe(makeSnapshot(makeLimit({ remainingPercent: 30 })));
+  assert.equal(recorder.calls.length, 0);
+
+  await notifier.observe(makeSnapshot(makeLimit({ remainingPercent: 19 })));
+
+  assert.equal(recorder.calls.length, 1);
+  assert.equal(recorder.calls[0].args[2], "codex / primary: 残量 19%（通知段階 20% 以下）");
+});
+
+test("刻み通知は下降時の最低到達段階だけを通知し、回復後の再下降で再通知する", async () => {
+  const recorder = recordingExecutor();
+  const notifier = new ThresholdNotifier(undefined, () => {}, recorder.execute, "popup", 20);
+
+  await notifier.observe(makeSnapshot(makeLimit({ remainingPercent: 85 })));
+  await notifier.observe(makeSnapshot(makeLimit({ remainingPercent: 79 })));
+  await notifier.observe(makeSnapshot(makeLimit({ remainingPercent: 65 })));
+  await notifier.observe(makeSnapshot(makeLimit({ remainingPercent: 35 })));
+  await notifier.observe(makeSnapshot(makeLimit({ remainingPercent: 35 })));
+  await notifier.observe(makeSnapshot(makeLimit({ remainingPercent: 65 })));
+  await notifier.observe(makeSnapshot(makeLimit({ remainingPercent: 35 })));
+
+  assert.deepEqual(
+    recorder.calls.map(({ args }) => args[2]),
+    [
+      "codex / primary: 残量 79%（通知段階 80% 以下）",
+      "codex / primary: 残量 35%（通知段階 40% 以下）",
+      "codex / primary: 残量 35%（通知段階 40% 以下）",
+    ],
+  );
+});
+
+test("刻み通知はresetsAtが変わると新期間として到達段階を通知する", async () => {
+  const recorder = recordingExecutor();
+  const notifier = new ThresholdNotifier(undefined, () => {}, recorder.execute, "popup", 20);
+
+  await notifier.observe(
+    makeSnapshot(makeLimit({ remainingPercent: 35, resetsAtEpochSeconds: 1_800_000_000 })),
+  );
+  await notifier.observe(
+    makeSnapshot(makeLimit({ remainingPercent: 35, resetsAtEpochSeconds: 1_800_003_600 })),
+  );
+
+  assert.equal(recorder.calls.length, 1);
+  assert.match(recorder.calls[0].args[2], /通知段階 40% 以下/);
+});
+
+test("固定閾値と刻み通知の併用時も初回の固定閾値通知を維持する", async () => {
+  const recorder = recordingExecutor();
+  const notifier = new ThresholdNotifier(50, () => {}, recorder.execute, "popup", 20);
+
+  await notifier.observe(makeSnapshot(makeLimit({ remainingPercent: 49 })));
+  assert.equal(recorder.calls.length, 1);
+  assert.match(recorder.calls[0].args[2], /通知閾値 50% 以下/);
+
+  await notifier.observe(makeSnapshot(makeLimit({ remainingPercent: 39 })));
+
+  assert.equal(recorder.calls.length, 2);
+  assert.match(recorder.calls[1].args[2], /通知段階 40% 以下/);
+});
+
+test("固定閾値と刻み通知で同じ段階が重複しても1回だけ通知する", async () => {
+  const recorder = recordingExecutor();
+  const notifier = new ThresholdNotifier(40, () => {}, recorder.execute, "popup", 20);
+
+  await notifier.observe(makeSnapshot(makeLimit({ remainingPercent: 45 })));
+  await notifier.observe(makeSnapshot(makeLimit({ remainingPercent: 39 })));
+
+  assert.equal(recorder.calls.length, 1);
+  assert.match(recorder.calls[0].args[2], /40% 以下/);
+});
+
 test("閉じるまで残るAppleScriptダイアログへ通知値をargvで渡す", async () => {
   const recorder = recordingExecutor();
   const notifier = new ThresholdNotifier(13, () => {}, recorder.execute);

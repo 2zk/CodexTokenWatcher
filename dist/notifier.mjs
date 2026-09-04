@@ -17,16 +17,18 @@ export class ThresholdNotifier {
     warn;
     execute;
     method;
+    notifyEvery;
     states = new Map();
     hasWarned = false;
-    constructor(threshold, warn, execute = defaultNotificationExecutor, method = "popup") {
+    constructor(threshold, warn, execute = defaultNotificationExecutor, method = "popup", notifyEvery = undefined) {
         this.threshold = threshold;
         this.warn = warn;
         this.execute = execute;
         this.method = method;
+        this.notifyEvery = notifyEvery;
     }
     async observe(snapshot) {
-        if (this.threshold === undefined)
+        if (this.threshold === undefined && this.notifyEvery === undefined)
             return;
         for (const limit of snapshot.limits) {
             await this.maybeNotify(limit);
@@ -35,14 +37,24 @@ export class ThresholdNotifier {
     async maybeNotify(limit) {
         const key = `${limit.limitId}:${limit.window}`;
         const previous = this.states.get(key);
-        const below = limit.remainingPercent <= this.threshold;
+        const reachedThresholds = this.reachedThresholds(limit.remainingPercent);
         const newWindow = previous !== undefined && previous.resetsAtEpochSeconds !== limit.resetsAtEpochSeconds;
-        const shouldNotify = below && (previous === undefined || !previous.below || newWindow);
-        this.states.set(key, { below, resetsAtEpochSeconds: limit.resetsAtEpochSeconds });
-        if (!shouldNotify)
+        const newlyReached = previous === undefined
+            ? this.threshold !== undefined && reachedThresholds.includes(this.threshold)
+                ? [this.threshold]
+                : []
+            : newWindow
+                ? reachedThresholds
+                : reachedThresholds.filter((threshold) => !previous.reachedThresholds.includes(threshold));
+        this.states.set(key, { reachedThresholds, resetsAtEpochSeconds: limit.resetsAtEpochSeconds });
+        const notificationThreshold = newlyReached.length === 0 ? undefined : Math.min(...newlyReached);
+        if (notificationThreshold === undefined)
             return;
         const name = limit.limitName ?? limit.limitId;
-        const message = `${name} / ${limit.window}: 残量 ${limit.remainingPercent}%（通知閾値 ${this.threshold}% 以下）`;
+        const description = notificationThreshold === this.threshold
+            ? `通知閾値 ${notificationThreshold}% 以下`
+            : `通知段階 ${notificationThreshold}% 以下`;
+        const message = `${name} / ${limit.window}: 残量 ${limit.remainingPercent}%（${description}）`;
         try {
             await this.execute("/usr/bin/osascript", [
                 "-e",
@@ -59,5 +71,17 @@ export class ThresholdNotifier {
                 this.warn(`${target}を表示できませんでした。監視は継続します: ${detail}`);
             }
         }
+    }
+    reachedThresholds(remainingPercent) {
+        const thresholds = new Set();
+        if (this.threshold !== undefined) {
+            thresholds.add(this.threshold);
+        }
+        if (this.notifyEvery !== undefined) {
+            for (let threshold = 100 - this.notifyEvery; threshold > 0; threshold -= this.notifyEvery) {
+                thresholds.add(threshold);
+            }
+        }
+        return [...thresholds].filter((threshold) => remainingPercent <= threshold);
     }
 }

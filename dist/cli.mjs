@@ -26,7 +26,7 @@ function writeResult(snapshot, options) {
     if (options.watch && process.stdout.isTTY) {
         process.stdout.write("\x1B[2J\x1B[H");
     }
-    process.stdout.write(`${formatSnapshot(snapshot, options.notifyBelow, options.notifyMethod)}\n`);
+    process.stdout.write(`${formatSnapshot(snapshot, options.notifyBelow, options.notifyMethod, options.notifyEvery)}\n`);
 }
 function reportError(error) {
     const message = error instanceof Error ? error.message : String(error);
@@ -106,10 +106,17 @@ export async function runCli(args) {
     }
     const options = parsed.options;
     const server = new CodexAppServer(options.codexBin, options.timeoutSeconds * 1_000);
-    const notifier = new ThresholdNotifier(options.notifyBelow, (message) => process.stderr.write(`警告: ${message}\n`), undefined, options.notifyMethod);
-    if (options.json && options.notifyBelow !== undefined) {
+    const notifier = new ThresholdNotifier(options.notifyBelow, (message) => process.stderr.write(`警告: ${message}\n`), undefined, options.notifyMethod, options.notifyEvery);
+    if (options.json && (options.notifyBelow !== undefined || options.notifyEvery !== undefined)) {
         const method = options.notifyMethod === "popup" ? "ポップアップ" : "通知センター";
-        process.stderr.write(`通知設定: 残量 ${options.notifyBelow}% 以下 / 通知方法: ${method}\n`);
+        const settings = [];
+        if (options.notifyBelow !== undefined) {
+            settings.push(`${options.notifyBelow}% 以下`);
+        }
+        if (options.notifyEvery !== undefined) {
+            settings.push(`${options.notifyEvery}ポイント減少ごと`);
+        }
+        process.stderr.write(`通知設定: 残量 ${settings.join(" + ")} / 通知方法: ${method}\n`);
     }
     let stopping = false;
     let exitCode = 0;

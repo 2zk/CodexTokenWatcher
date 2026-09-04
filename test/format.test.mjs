@@ -63,6 +63,26 @@ test("popup方式は取得日時行にポップアップと表示する", () => 
   assert.equal(lines.filter((line) => line.includes("通知設定:")).length, 1);
 });
 
+test("刻み通知を指定すると取得日時行に減少ポイントと通知方法を含める", () => {
+  const lines = formatSnapshot(snapshotWithDurations([300]), undefined, "notification", 20).split("\n");
+
+  assert.match(
+    lines[0],
+    /^取得日時: [^\n]+ 【通知設定: 残量 20ポイント減少ごと \/ 通知方法: 通知センター】$/,
+  );
+  assert.equal(lines.filter((line) => line.includes("通知設定:")).length, 1);
+});
+
+test("固定閾値と刻み通知を併用すると両方の設定を取得日時行に含める", () => {
+  const lines = formatSnapshot(snapshotWithDurations([300]), 30, "popup", 20).split("\n");
+
+  assert.match(
+    lines[0],
+    /^取得日時: [^\n]+ 【通知設定: 残量 30% 以下 \+ 20ポイント減少ごと \/ 通知方法: ポップアップ】$/,
+  );
+  assert.equal(lines.filter((line) => line.includes("通知設定:")).length, 1);
+});
+
 test("制限がない場合は明示する", () => {
   const snapshot = snapshotWithDurations([]);
   assert.match(formatSnapshot(snapshot), /表示可能な利用制限は返されませんでした/);

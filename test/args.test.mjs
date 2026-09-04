@@ -12,6 +12,7 @@ test("引数なしの既定値は one-shot、interval 180秒、popup通知、tim
       intervalSeconds: 180,
       json: false,
       notifyBelow: undefined,
+      notifyEvery: undefined,
       notifyMethod: "popup",
       codexBin: "codex",
       timeoutSeconds: 15,
@@ -46,12 +47,22 @@ test("timeout、通知閾値、codex-bin を解釈する", () => {
       intervalSeconds: 180,
       json: false,
       notifyBelow: 0,
+      notifyEvery: undefined,
       notifyMethod: "popup",
       codexBin: "/tmp/fake-codex",
       timeoutSeconds: 1,
     },
   });
   assert.equal(parseArgs(["--notify-below", "100"]).options.notifyBelow, 100);
+});
+
+test("notify-every は1〜99の整数を解釈し、notify-belowと併用できる", () => {
+  assert.equal(parseArgs(["--notify-every", "1"]).options.notifyEvery, 1);
+  assert.equal(parseArgs(["--notify-every", "99"]).options.notifyEvery, 99);
+
+  const options = parseArgs(["--notify-below", "30", "--notify-every", "20"]).options;
+  assert.equal(options.notifyBelow, 30);
+  assert.equal(options.notifyEvery, 20);
 });
 
 test("notify-method は popup と notification を解釈する", () => {
@@ -65,6 +76,11 @@ for (const args of [
   ["--notify-below", "-1"],
   ["--notify-below", "101"],
   ["--notify-below", "1.5"],
+  ["--notify-every", "0"],
+  ["--notify-every", "100"],
+  ["--notify-every", "1.5"],
+  ["--notify-every", "abc"],
+  ["--notify-every"],
   ["--unknown"],
   ["--interval"],
   ["--timeout", "--json"],
@@ -83,6 +99,7 @@ test("help と version は即時結果を返す", () => {
   assert.deepEqual(parseArgs(["--version"]), { kind: "version" });
   assert.match(helpText(), /既定: 180、60以上の整数/);
   assert.match(helpText(), /--notify-below <percent>\s+残量が指定値以下なら通知する（0〜100）/);
+  assert.match(helpText(), /--notify-every <percent>\s+残量が指定ポイント減少するごとに通知する（1〜99）/);
   assert.match(
     helpText(),
     /--notify-method <method>\s+通知方式: popup または notification（既定: popup）/,

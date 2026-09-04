@@ -25,10 +25,17 @@ function resetAt(value) {
 function label(limit) {
     return limit.limitName ?? limit.limitId;
 }
-export function formatSnapshot(snapshot, notifyBelow = undefined, notifyMethod = "popup") {
-    const notification = notifyBelow === undefined
+export function formatSnapshot(snapshot, notifyBelow = undefined, notifyMethod = "popup", notifyEvery = undefined) {
+    const settings = [];
+    if (notifyBelow !== undefined) {
+        settings.push(`${notifyBelow}% 以下`);
+    }
+    if (notifyEvery !== undefined) {
+        settings.push(`${notifyEvery}ポイント減少ごと`);
+    }
+    const notification = settings.length === 0
         ? ""
-        : ` 【通知設定: 残量 ${notifyBelow}% 以下 / 通知方法: ${notifyMethod === "popup" ? "ポップアップ" : "通知センター"}】`;
+        : ` 【通知設定: 残量 ${settings.join(" + ")} / 通知方法: ${notifyMethod === "popup" ? "ポップアップ" : "通知センター"}】`;
     const lines = [`取得日時: ${resetAt(snapshot.observedAt)}${notification}`];
     if (snapshot.limits.length === 0) {
         lines.push("表示可能な利用制限は返されませんでした。");

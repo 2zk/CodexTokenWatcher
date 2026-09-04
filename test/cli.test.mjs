@@ -69,11 +69,35 @@ test("人向け出力は通知閾値の指定時だけ取得日時行に設定�
   assert.doesNotMatch(withoutNotificationResult.stdout, /通知設定:/);
 });
 
-test("one-shot JSONは通知設定をstderrへ1回だけ出し、stdoutのスキーマを変えない", async (t) => {
+test("人向け出力は刻み通知の設定を取得日時行に含める", async (t) => {
+  const fake = await createFakeCodex(t, "normal");
+  const run = spawnCli([
+    "--notify-every",
+    "20",
+    "--notify-method",
+    "notification",
+    "--codex-bin",
+    fake.executablePath,
+  ]);
+  const result = await run.completed;
+
+  assert.equal(result.code, 0);
+  assert.equal(result.stderr, "");
+  const lines = result.stdout.trimEnd().split("\n");
+  assert.match(
+    lines[0],
+    /^取得日時: [^\n]+ 【通知設定: 残量 20ポイント減少ごと \/ 通知方法: 通知センター】$/,
+  );
+  assert.doesNotMatch(lines.slice(1).join("\n"), /通知設定:/);
+});
+
+test("one-shot JSONは併用した通知設定をstderrへ1回だけ出し、stdoutのスキーマを変えない", async (t) => {
   const fake = await createFakeCodex(t, "normal");
   const run = spawnCli([
     "--json",
     "--notify-below",
+    "30",
+    "--notify-every",
     "20",
     "--notify-method",
     "notification",
@@ -88,9 +112,10 @@ test("one-shot JSONは通知設定をstderrへ1回だけ出し、stdoutのスキ
   const parsed = JSON.parse(lines[0]);
   assert.deepEqual(Object.keys(parsed).sort(), ["limits", "observedAt", "schemaVersion"]);
   assert.equal("notifyBelow" in parsed, false);
+  assert.equal("notifyEvery" in parsed, false);
   assert.equal("notifyMethod" in parsed, false);
   assert.deepEqual(result.stderr.trimEnd().split("\n"), [
-    "通知設定: 残量 20% 以下 / 通知方法: 通知センター",
+    "通知設定: 残量 30% 以下 + 20ポイント減少ごと / 通知方法: 通知センター",
   ]);
 });
 
@@ -117,6 +142,8 @@ test("update burstをdebounceし、pollを重複させず、SIGINTでchild stdin
     "60",
     "--notify-below",
     "20",
+    "--notify-every",
+    "20",
     "--codex-bin",
     fake.executablePath,
   ]);
@@ -136,10 +163,14 @@ test("update burstをdebounceし、pollを重複させず、SIGINTでchild stdin
     assert.equal(parsed.schemaVersion, 1);
     assert.deepEqual(Object.keys(parsed).sort(), ["limits", "observedAt", "schemaVersion"]);
     assert.equal("notifyBelow" in parsed, false);
+    assert.equal("notifyEvery" in parsed, false);
     assert.equal("notifyMethod" in parsed, false);
   }
   assert.equal(result.stderr.match(/通知設定:/g)?.length, 1);
-  assert.match(result.stderr, /通知設定: 残量 20% 以下 \/ 通知方法: ポップアップ/);
+  assert.match(
+    result.stderr,
+    /通知設定: 残量 20% 以下 \+ 20ポイント減少ごと \/ 通知方法: ポップアップ/,
+  );
   assert.match(result.stderr, /SIGINT を受信したため終了処理を開始します/);
 
   const events = await waitUntil(async () => {
@@ -195,6 +226,10 @@ test("help/versionと引数エラーのexit codeをCLI境界でも維持する",
   assert.equal(helpResult.code, 0);
   assert.match(helpResult.stdout, /既定: 180、60以上の整数/);
   assert.match(helpResult.stdout, /--notify-below <percent>\s+残量が指定値以下なら通知する（0〜100）/);
+  assert.match(
+    helpResult.stdout,
+    /--notify-every <percent>\s+残量が指定ポイント減少するごとに通知する（1〜99）/,
+  );
   assert.match(
     helpResult.stdout,
     /--notify-method <method>\s+通知方式: popup または notification（既定: popup）/,

@@ -7,6 +7,7 @@ const HELP = `使い方: codex-token-watcher [options]
   --json                     one-shot は JSON、watch は NDJSON で出力する
   --filter <text>            表示名と期間を部分一致で絞り込む（大文字・小文字を区別しない）
   --notify-below <percent>   残量が指定値以下なら通知する（0〜100）
+  --notify-every <percent>   残量が指定ポイント減少するごとに通知する（1〜99）
   --notify-method <method>   通知方式: popup または notification（既定: popup）
   --codex-bin <path>         Codex 実行ファイル（既定: codex）
   --timeout <seconds>        RPC タイムアウト（既定: 15、正整数）
@@ -38,6 +39,7 @@ export function parseArgs(args) {
         intervalSeconds: 180,
         json: false,
         notifyBelow: undefined,
+        notifyEvery: undefined,
         notifyMethod: "popup",
         codexBin: "codex",
         timeoutSeconds: 15,
@@ -73,6 +75,15 @@ export function parseArgs(args) {
                     throw new CliUsageError(`${arg} は 0〜100 の整数で指定してください。`);
                 }
                 options.notifyBelow = Number(value);
+                index += 1;
+                break;
+            }
+            case "--notify-every": {
+                const value = requiredValue(args, index, arg);
+                if (!/^(?:[1-9][0-9]?)$/.test(value)) {
+                    throw new CliUsageError(`${arg} は 1〜99 の整数で指定してください。`);
+                }
+                options.notifyEvery = Number(value);
                 index += 1;
                 break;
             }
