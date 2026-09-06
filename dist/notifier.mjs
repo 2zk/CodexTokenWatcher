@@ -38,15 +38,12 @@ export class ThresholdNotifier {
         const key = `${limit.limitId}:${limit.window}`;
         const previous = this.states.get(key);
         const reachedThresholds = this.reachedThresholds(limit.remainingPercent);
-        const newWindow = previous !== undefined && previous.resetsAtEpochSeconds !== limit.resetsAtEpochSeconds;
         const newlyReached = previous === undefined
             ? this.threshold !== undefined && reachedThresholds.includes(this.threshold)
                 ? [this.threshold]
                 : []
-            : newWindow
-                ? reachedThresholds
-                : reachedThresholds.filter((threshold) => !previous.reachedThresholds.includes(threshold));
-        this.states.set(key, { reachedThresholds, resetsAtEpochSeconds: limit.resetsAtEpochSeconds });
+            : reachedThresholds.filter((threshold) => !previous.reachedThresholds.includes(threshold));
+        this.states.set(key, { reachedThresholds });
         const notificationThreshold = newlyReached.length === 0 ? undefined : Math.min(...newlyReached);
         if (notificationThreshold === undefined)
             return;
