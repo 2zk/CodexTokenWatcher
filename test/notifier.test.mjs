@@ -21,12 +21,16 @@ function makeLimit({
   };
 }
 
-function makeSnapshot(...limits) {
+function makeSnapshotAt(observedAtEpochSeconds, ...limits) {
   return {
     schemaVersion: 1,
-    observedAt: "2026-08-30T00:00:00.000Z",
+    observedAt: new Date(observedAtEpochSeconds * 1_000).toISOString(),
     limits,
   };
+}
+
+function makeSnapshot(...limits) {
+  return makeSnapshotAt(1_799_999_000, ...limits);
 }
 
 function recordingExecutor({ failure } = {}) {
@@ -89,6 +93,58 @@ test("belowのままresetsAtだけが変わっても再通知しない", async (
   await notifier.observe(makeSnapshot(makeLimit({ remainingPercent: 10, resetsAtEpochSeconds: 1_800_003_600 })));
 
   assert.equal(recorder.calls.length, 1);
+});
+
+test("リセット日時を過ぎて残量が回復したら通知する", async () => {
+  const recorder = recordingExecutor();
+  const notifier = new ThresholdNotifier(20, () => {}, recorder.execute);
+
+  await notifier.observe(
+    makeSnapshotAt(1_799_999_000, makeLimit({ remainingPercent: 10, resetsAtEpochSeconds: 1_800_000_000 })),
+  );
+  await notifier.observe(
+    makeSnapshotAt(1_800_000_001, makeLimit({ remainingPercent: 100, resetsAtEpochSeconds: 1_800_018_000 })),
+  );
+
+  assert.equal(recorder.calls.length, 2);
+  assert.equal(recorder.calls[1].args[2], "codex / primary: 残量 100%（リセットにより回復）");
+});
+
+test("リセット日時より前の残量回復では通知しない", async () => {
+  const recorder = recordingExecutor();
+  const notifier = new ThresholdNotifier(20, () => {}, recorder.execute);
+
+  await notifier.observe(
+    makeSnapshotAt(1_799_999_000, makeLimit({ remainingPercent: 30, resetsAtEpochSeconds: 1_800_000_000 })),
+  );
+  await notifier.observe(
+    makeSnapshotAt(1_799_999_500, makeLimit({ remainingPercent: 80, resetsAtEpochSeconds: 1_800_000_000 })),
+  );
+
+  assert.equal(recorder.calls.length, 0);
+});
+
+test("リセット日時通過後に遅れて残量が回復しても1回だけ通知する", async () => {
+  const recorder = recordingExecutor();
+  const notifier = new ThresholdNotifier(undefined, () => {}, recorder.execute, "popup", 20);
+
+  await notifier.observe(
+    makeSnapshotAt(1_799_999_000, makeLimit({ remainingPercent: 30, resetsAtEpochSeconds: 1_800_000_000 })),
+  );
+  await notifier.observe(
+    makeSnapshotAt(1_800_000_001, makeLimit({ remainingPercent: 30, resetsAtEpochSeconds: 1_800_018_000 })),
+  );
+  await notifier.observe(
+    makeSnapshotAt(1_800_000_002, makeLimit({ remainingPercent: 100, resetsAtEpochSeconds: 1_800_018_000 })),
+  );
+  await notifier.observe(
+    makeSnapshotAt(1_800_000_003, makeLimit({ remainingPercent: 100, resetsAtEpochSeconds: 1_800_018_000 })),
+  );
+
+  assert.deepEqual(
+    recorder.calls.map(({ args }) => args[2]),
+    ["codex / primary: 残量 100%（リセットにより回復）"],
+  );
 });
 
 test("刻み通知の初回観測では到達済み段階を通知せず、次の未到達段階への下降で通知する", async () => {

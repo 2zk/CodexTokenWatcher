@@ -12,6 +12,43 @@ const defaultNotificationExecutor = (file, args) => new Promise((resolve, reject
         reject(error);
     }
 });
+function evaluateObservation(previous, limit, observedAtEpochSeconds, reachedThresholds, threshold) {
+    const previousResetAtEpochSeconds = previous?.resetsAtEpochSeconds;
+    const pendingResetAtEpochSeconds = previousResetAtEpochSeconds !== null &&
+        previousResetAtEpochSeconds !== undefined &&
+        observedAtEpochSeconds >= previousResetAtEpochSeconds
+        ? previousResetAtEpochSeconds
+        : previous?.pendingResetAtEpochSeconds;
+    const recoveredAfterReset = previous !== undefined &&
+        pendingResetAtEpochSeconds !== undefined &&
+        limit.remainingPercent > previous.remainingPercent;
+    const newlyReached = previous === undefined
+        ? threshold !== undefined && reachedThresholds.includes(threshold)
+            ? [threshold]
+            : []
+        : reachedThresholds.filter((candidate) => !previous.reachedThresholds.includes(candidate));
+    const messages = [];
+    const name = limit.limitName ?? limit.limitId;
+    if (recoveredAfterReset) {
+        messages.push(`${name} / ${limit.window}: 残量 ${limit.remainingPercent}%（リセットにより回復）`);
+    }
+    if (newlyReached.length > 0) {
+        const notificationThreshold = Math.min(...newlyReached);
+        const description = notificationThreshold === threshold
+            ? `通知閾値 ${notificationThreshold}% 以下`
+            : `通知段階 ${notificationThreshold}% 以下`;
+        messages.push(`${name} / ${limit.window}: 残量 ${limit.remainingPercent}%（${description}）`);
+    }
+    return {
+        state: {
+            reachedThresholds,
+            remainingPercent: limit.remainingPercent,
+            resetsAtEpochSeconds: limit.resetsAtEpochSeconds,
+            pendingResetAtEpochSeconds: recoveredAfterReset ? undefined : pendingResetAtEpochSeconds,
+        },
+        messages,
+    };
+}
 export class ThresholdNotifier {
     threshold;
     warn;
@@ -30,28 +67,22 @@ export class ThresholdNotifier {
     async observe(snapshot) {
         if (this.threshold === undefined && this.notifyEvery === undefined)
             return;
+        const observedAtEpochSeconds = Date.parse(snapshot.observedAt) / 1_000;
         for (const limit of snapshot.limits) {
-            await this.maybeNotify(limit);
+            await this.maybeNotify(limit, observedAtEpochSeconds);
         }
     }
-    async maybeNotify(limit) {
+    async maybeNotify(limit, observedAtEpochSeconds) {
         const key = `${limit.limitId}:${limit.window}`;
         const previous = this.states.get(key);
         const reachedThresholds = this.reachedThresholds(limit.remainingPercent);
-        const newlyReached = previous === undefined
-            ? this.threshold !== undefined && reachedThresholds.includes(this.threshold)
-                ? [this.threshold]
-                : []
-            : reachedThresholds.filter((threshold) => !previous.reachedThresholds.includes(threshold));
-        this.states.set(key, { reachedThresholds });
-        const notificationThreshold = newlyReached.length === 0 ? undefined : Math.min(...newlyReached);
-        if (notificationThreshold === undefined)
-            return;
-        const name = limit.limitName ?? limit.limitId;
-        const description = notificationThreshold === this.threshold
-            ? `通知閾値 ${notificationThreshold}% 以下`
-            : `通知段階 ${notificationThreshold}% 以下`;
-        const message = `${name} / ${limit.window}: 残量 ${limit.remainingPercent}%（${description}）`;
+        const result = evaluateObservation(previous, limit, observedAtEpochSeconds, reachedThresholds, this.threshold);
+        this.states.set(key, result.state);
+        for (const message of result.messages) {
+            await this.sendNotification(message);
+        }
+    }
+    async sendNotification(message) {
         try {
             await this.execute("/usr/bin/osascript", [
                 "-e",
