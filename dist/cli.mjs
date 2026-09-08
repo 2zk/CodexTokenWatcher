@@ -9,6 +9,7 @@ import { ThresholdNotifier } from "./notifier.mjs";
 import { AppServerError, CliUsageError } from "./types.mjs";
 const VERSION = "0.1.0";
 const UPDATE_DEBOUNCE_MS = 500;
+const RATE_LIMIT_RETRY_DELAYS_MS = [10_000, 20_000, 30_000];
 function filterSnapshot(snapshot, filter) {
     if (filter === undefined)
         return snapshot;
@@ -32,6 +33,48 @@ function reportError(error) {
     const message = error instanceof Error ? error.message : String(error);
     process.stderr.write(`エラー: ${message}\n`);
 }
+async function waitForRetry(delayMs, shouldStop, setWake) {
+    if (shouldStop())
+        return;
+    await new Promise((resolve) => {
+        let done = false;
+        let timer;
+        const finish = () => {
+            if (done)
+                return;
+            done = true;
+            if (timer !== undefined)
+                clearTimeout(timer);
+            setWake(undefined);
+            resolve();
+        };
+        setWake(finish);
+        timer = setTimeout(finish, delayMs);
+    });
+}
+export async function readRateLimitsWithRetry(server, shouldStop, setWake, dependencies = {}) {
+    const wait = dependencies.waitForRetry ?? waitForRetry;
+    const reportRetry = dependencies.reportRetry ?? ((delayMs) => {
+        process.stderr.write(`利用量取得に失敗したため、${delayMs / 1_000} 秒後に再試行します。\n`);
+    });
+    for (let attempt = 0; attempt <= RATE_LIMIT_RETRY_DELAYS_MS.length; attempt += 1) {
+        if (shouldStop())
+            return undefined;
+        try {
+            return await server.readRateLimits();
+        }
+        catch (error) {
+            if (shouldStop())
+                return undefined;
+            if (attempt === RATE_LIMIT_RETRY_DELAYS_MS.length)
+                throw error;
+            const delayMs = RATE_LIMIT_RETRY_DELAYS_MS[attempt];
+            reportRetry(delayMs);
+            await wait(delayMs, shouldStop, setWake);
+        }
+    }
+    return undefined;
+}
 async function runWatch(server, options, notifier, shouldStop, setWake) {
     let updatePending = false;
     let wakeCurrentWait;
@@ -42,7 +85,9 @@ async function runWatch(server, options, notifier, shouldStop, setWake) {
     server.on("rateLimitsUpdated", onUpdated);
     try {
         while (!shouldStop()) {
-            const result = await server.readRateLimits();
+            const result = await readRateLimitsWithRetry(server, shouldStop, setWake);
+            if (result === undefined)
+                break;
             const snapshot = filterSnapshot(normalizeRateLimits(result), options.filter);
             writeResult(snapshot, options);
             await notifier.observe(snapshot);
@@ -145,7 +190,11 @@ export async function runCli(args) {
             });
         }
         else {
-            const result = await server.readRateLimits();
+            const result = await readRateLimitsWithRetry(server, () => stopping, (nextWake) => {
+                wake = nextWake;
+            });
+            if (result === undefined)
+                return receivedSignal ? 130 : exitCode;
             const snapshot = filterSnapshot(normalizeRateLimits(result), options.filter);
             writeResult(snapshot, options);
             await notifier.observe(snapshot);

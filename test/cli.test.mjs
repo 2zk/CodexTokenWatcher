@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
+import { readRateLimitsWithRetry } from "../dist/cli.mjs";
 import { createFakeCodex, readCapturedEvents, waitUntil } from "./helpers/fake-codex.mjs";
 
 const cliPath = fileURLToPath(new URL("../dist/cli.mjs", import.meta.url));
@@ -24,6 +25,83 @@ function spawnCli(args) {
   });
   return { child, completed, stdout: () => stdout, stderr: () => stderr };
 }
+
+test("利用量取得は10/20/30秒後に再試行し、4回目に成功すれば結果を返す", async () => {
+  const expected = { rateLimits: { codex: {} } };
+  const delays = [];
+  let readCount = 0;
+  const server = {
+    async readRateLimits() {
+      readCount += 1;
+      if (readCount < 4) throw new Error(`一時エラー ${readCount}`);
+      return expected;
+    },
+  };
+
+  const result = await readRateLimitsWithRetry(server, () => false, () => {}, {
+    waitForRetry: async (delayMs) => {
+      delays.push(delayMs);
+    },
+    reportRetry: () => {},
+  });
+
+  assert.equal(result, expected);
+  assert.equal(readCount, 4);
+  assert.deepEqual(delays, [10_000, 20_000, 30_000]);
+});
+
+test("利用量取得は初回と3回の再試行がすべて失敗すると最後のエラーをthrowする", async () => {
+  const delays = [];
+  const errors = Array.from({ length: 4 }, (_, index) => new Error(`取得失敗 ${index + 1}`));
+  let readCount = 0;
+  const server = {
+    async readRateLimits() {
+      const error = errors[readCount];
+      readCount += 1;
+      throw error;
+    },
+  };
+
+  await assert.rejects(
+    readRateLimitsWithRetry(server, () => false, () => {}, {
+      waitForRetry: async (delayMs) => {
+        delays.push(delayMs);
+      },
+      reportRetry: () => {},
+    }),
+    (error) => error === errors[3],
+  );
+  assert.equal(readCount, 4);
+  assert.deepEqual(delays, [10_000, 20_000, 30_000]);
+});
+
+test("利用量取得の再試行待機は停止通知で中断し、以後readしない", async () => {
+  let readCount = 0;
+  let stopping = false;
+  let wake;
+  const server = {
+    async readRateLimits() {
+      readCount += 1;
+      throw new Error("取得失敗");
+    },
+  };
+
+  const pending = readRateLimitsWithRetry(server, () => stopping, (nextWake) => {
+    wake = nextWake;
+  }, {
+    reportRetry: () => {},
+  });
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(typeof wake, "function");
+
+  stopping = true;
+  wake();
+  const result = await pending;
+
+  assert.equal(result, undefined);
+  assert.equal(readCount, 1);
+  assert.equal(wake, undefined);
+});
 
 test("one-shot JSONはstdoutにJSON一行だけを出し、診断を混ぜない", async (t) => {
   const fake = await createFakeCodex(t, "normal");

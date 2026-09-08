@@ -62,7 +62,7 @@ clone 後のパッケージインストールやビルドは不要。リポジ�
 ./codex-token-watcher --watch --notify-below 30 --notify-every 20
 ```
 
-`--interval` は 60 以上の整数だけを受け付け、既定は 180 秒。`--timeout` は正整数だけを受け付ける。`--notify-below` は 0〜100 の整数、`--notify-every` は 1〜99 の整数を受け付ける。
+`--interval` は 60 以上の整数だけを受け付け、既定は 180 秒。`--timeout` は正整数だけを受け付ける。利用量取得に失敗した場合は 10 秒、20 秒、30 秒後に計 3 回再試行し、初回を含む最大 4 回がすべて失敗した場合は既存どおりエラー終了する。`--notify-below` は 0〜100 の整数、`--notify-every` は 1〜99 の整数を受け付ける。
 
 `--filter <text>` を指定すると、各制限の表示名（`limitName` がなければ `limitId`）と期間（`primary` / `secondary`）を連結した文字列に対し、大文字・小文字を区別しない部分一致で絞り込む。省略時はすべての制限を表示する。フィルタは人向け表示、JSON/NDJSON、通知の対象に共通で適用される。
 
