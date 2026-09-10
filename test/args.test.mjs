@@ -70,6 +70,13 @@ test("notify-method は popup と notification を解釈する", () => {
   assert.equal(parseArgs(["--notify-method", "notification"]).options.notifyMethod, "notification");
 });
 
+test("notify-method の不正値にはMac 通知センター方式を案内する", () => {
+  assert.throws(
+    () => parseArgs(["--notify-method", "banner"]),
+    /notification（Mac 通知センター）/,
+  );
+});
+
 for (const args of [
   ["--timeout", "0"],
   ["--timeout", "1.5"],
@@ -99,9 +106,9 @@ test("help と version は即時結果を返す", () => {
   assert.deepEqual(parseArgs(["--version"]), { kind: "version" });
   assert.match(helpText(), /既定: 180、60以上の整数/);
   assert.match(helpText(), /--notify-below <percent>\s+残量が指定値以下なら通知する（0〜100）/);
-  assert.match(helpText(), /--notify-every <percent>\s+残量が指定ポイント減少するごとに通知する（1〜99）/);
+  assert.match(helpText(), /--notify-every <percent>\s+指定した割合（%）ごとに通知する（1〜99）/);
   assert.match(
     helpText(),
-    /--notify-method <method>\s+通知方式: popup または notification（既定: popup）/,
+    /--notify-method <method>\s+通知方式: popup（ポップアップ）または notification（Mac 通知センター）（既定: popup）/,
   );
 });

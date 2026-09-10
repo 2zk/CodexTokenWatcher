@@ -153,13 +153,13 @@ export async function runCli(args) {
     const server = new CodexAppServer(options.codexBin, options.timeoutSeconds * 1_000);
     const notifier = new ThresholdNotifier(options.notifyBelow, (message) => process.stderr.write(`警告: ${message}\n`), undefined, options.notifyMethod, options.notifyEvery);
     if (options.json && (options.notifyBelow !== undefined || options.notifyEvery !== undefined)) {
-        const method = options.notifyMethod === "popup" ? "ポップアップ" : "通知センター";
+        const method = options.notifyMethod === "popup" ? "ポップアップ" : "Mac 通知センター";
         const settings = [];
         if (options.notifyBelow !== undefined) {
             settings.push(`${options.notifyBelow}% 以下`);
         }
         if (options.notifyEvery !== undefined) {
-            settings.push(`${options.notifyEvery}ポイント減少ごと`);
+            settings.push(`${options.notifyEvery}% 毎の通知`);
         }
         process.stderr.write(`通知設定: 残量 ${settings.join(" + ")} / 通知方法: ${method}\n`);
     }

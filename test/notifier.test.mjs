@@ -157,7 +157,7 @@ test("刻み通知の初回観測では到達済み段階を通知せず、次�
   await notifier.observe(makeSnapshot(makeLimit({ remainingPercent: 19 })));
 
   assert.equal(recorder.calls.length, 1);
-  assert.equal(recorder.calls[0].args[2], "codex / primary: 残量 19%（通知段階 20% 以下）");
+  assert.equal(recorder.calls[0].args[2], "codex / primary: 残量 19%（20% 毎の通知）");
 });
 
 test("刻み通知は下降時の最低到達段階だけを通知し、回復後の再下降で再通知する", async () => {
@@ -175,9 +175,9 @@ test("刻み通知は下降時の最低到達段階だけを通知し、回復�
   assert.deepEqual(
     recorder.calls.map(({ args }) => args[2]),
     [
-      "codex / primary: 残量 79%（通知段階 80% 以下）",
-      "codex / primary: 残量 35%（通知段階 40% 以下）",
-      "codex / primary: 残量 35%（通知段階 40% 以下）",
+      "codex / primary: 残量 79%（20% 毎の通知）",
+      "codex / primary: 残量 35%（20% 毎の通知）",
+      "codex / primary: 残量 35%（20% 毎の通知）",
     ],
   );
 });
@@ -197,7 +197,7 @@ test("刻み通知はresetsAtが変動しても新しく到達した段階だけ
   );
 
   assert.equal(recorder.calls.length, 1);
-  assert.equal(recorder.calls[0].args[2], "codex / primary: 残量 28%（通知段階 30% 以下）");
+  assert.equal(recorder.calls[0].args[2], "codex / primary: 残量 28%（10% 毎の通知）");
 });
 
 test("固定閾値と刻み通知の併用時も初回の固定閾値通知を維持する", async () => {
@@ -211,7 +211,7 @@ test("固定閾値と刻み通知の併用時も初回の固定閾値通知を�
   await notifier.observe(makeSnapshot(makeLimit({ remainingPercent: 39 })));
 
   assert.equal(recorder.calls.length, 2);
-  assert.match(recorder.calls[1].args[2], /通知段階 40% 以下/);
+  assert.match(recorder.calls[1].args[2], /20% 毎の通知/);
 });
 
 test("固定閾値と刻み通知で同じ段階が重複しても1回だけ通知する", async () => {
@@ -299,7 +299,7 @@ test("executor失敗は一度だけ警告し、残りのwindow観測を継続す
   assert.equal(warnings.length, 1);
 });
 
-test("notificationのexecutor失敗は通知センター方式の警告にする", async () => {
+test("notificationのexecutor失敗はMac 通知センター方式の警告にする", async () => {
   const warnings = [];
   const recorder = recordingExecutor({ failure: new Error("synthetic executor failure") });
   const notifier = new ThresholdNotifier(
@@ -313,6 +313,6 @@ test("notificationのexecutor失敗は通知センター方式の警告にする
     notifier.observe(makeSnapshot(makeLimit({ remainingPercent: 10 }))),
   );
   assert.deepEqual(warnings, [
-    "macOS 通知センター通知を表示できませんでした。監視は継続します: synthetic executor failure",
+    "Mac 通知センター通知を表示できませんでした。監視は継続します: synthetic executor failure",
   ]);
 });

@@ -133,7 +133,7 @@ test("人向け出力は通知閾値の指定時だけ取得日時行に設定�
   const withNotificationLines = withNotificationResult.stdout.trimEnd().split("\n");
   assert.match(
     withNotificationLines[0],
-    /^取得日時: [^\n]+ 【通知設定: 残量 20% 以下 \/ 通知方法: 通知センター】$/,
+    /^取得日時: [^\n]+ 【通知設定: 残量 20% 以下 \/ 通知方法: Mac 通知センター】$/,
   );
   assert.doesNotMatch(withNotificationLines.slice(1).join("\n"), /通知設定:/);
 
@@ -164,7 +164,7 @@ test("人向け出力は刻み通知の設定を取得日時行に含める", as
   const lines = result.stdout.trimEnd().split("\n");
   assert.match(
     lines[0],
-    /^取得日時: [^\n]+ 【通知設定: 残量 20ポイント減少ごと \/ 通知方法: 通知センター】$/,
+    /^取得日時: [^\n]+ 【通知設定: 残量 20% 毎の通知 \/ 通知方法: Mac 通知センター】$/,
   );
   assert.doesNotMatch(lines.slice(1).join("\n"), /通知設定:/);
 });
@@ -193,7 +193,7 @@ test("one-shot JSONは併用した通知設定をstderrへ1回だけ出し、std
   assert.equal("notifyEvery" in parsed, false);
   assert.equal("notifyMethod" in parsed, false);
   assert.deepEqual(result.stderr.trimEnd().split("\n"), [
-    "通知設定: 残量 30% 以下 + 20ポイント減少ごと / 通知方法: 通知センター",
+    "通知設定: 残量 30% 以下 + 20% 毎の通知 / 通知方法: Mac 通知センター",
   ]);
 });
 
@@ -247,7 +247,7 @@ test("update burstをdebounceし、pollを重複させず、SIGINTでchild stdin
   assert.equal(result.stderr.match(/通知設定:/g)?.length, 1);
   assert.match(
     result.stderr,
-    /通知設定: 残量 20% 以下 \+ 20ポイント減少ごと \/ 通知方法: ポップアップ/,
+    /通知設定: 残量 20% 以下 \+ 20% 毎の通知 \/ 通知方法: ポップアップ/,
   );
   assert.match(result.stderr, /SIGINT を受信したため終了処理を開始します/);
 
@@ -306,11 +306,11 @@ test("help/versionと引数エラーのexit codeをCLI境界でも維持する",
   assert.match(helpResult.stdout, /--notify-below <percent>\s+残量が指定値以下なら通知する（0〜100）/);
   assert.match(
     helpResult.stdout,
-    /--notify-every <percent>\s+残量が指定ポイント減少するごとに通知する（1〜99）/,
+    /--notify-every <percent>\s+指定した割合（%）ごとに通知する（1〜99）/,
   );
   assert.match(
     helpResult.stdout,
-    /--notify-method <method>\s+通知方式: popup または notification（既定: popup）/,
+    /--notify-method <method>\s+通知方式: popup（ポップアップ）または notification（Mac 通知センター）（既定: popup）/,
   );
 
   const version = spawnCli(["--version"]);

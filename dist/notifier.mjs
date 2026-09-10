@@ -12,7 +12,7 @@ const defaultNotificationExecutor = (file, args) => new Promise((resolve, reject
         reject(error);
     }
 });
-function evaluateObservation(previous, limit, observedAtEpochSeconds, reachedThresholds, threshold) {
+function evaluateObservation(previous, limit, observedAtEpochSeconds, reachedThresholds, threshold, notifyEvery) {
     const previousResetAtEpochSeconds = previous?.resetsAtEpochSeconds;
     const pendingResetAtEpochSeconds = previousResetAtEpochSeconds !== null &&
         previousResetAtEpochSeconds !== undefined &&
@@ -36,7 +36,7 @@ function evaluateObservation(previous, limit, observedAtEpochSeconds, reachedThr
         const notificationThreshold = Math.min(...newlyReached);
         const description = notificationThreshold === threshold
             ? `通知閾値 ${notificationThreshold}% 以下`
-            : `通知段階 ${notificationThreshold}% 以下`;
+            : `${notifyEvery}% 毎の通知`;
         messages.push(`${name} / ${limit.window}: 残量 ${limit.remainingPercent}%（${description}）`);
     }
     return {
@@ -76,7 +76,7 @@ export class ThresholdNotifier {
         const key = `${limit.limitId}:${limit.window}`;
         const previous = this.states.get(key);
         const reachedThresholds = this.reachedThresholds(limit.remainingPercent);
-        const result = evaluateObservation(previous, limit, observedAtEpochSeconds, reachedThresholds, this.threshold);
+        const result = evaluateObservation(previous, limit, observedAtEpochSeconds, reachedThresholds, this.threshold, this.notifyEvery);
         this.states.set(key, result.state);
         for (const message of result.messages) {
             await this.sendNotification(message);
@@ -95,7 +95,7 @@ export class ThresholdNotifier {
             if (!this.hasWarned) {
                 this.hasWarned = true;
                 const detail = error instanceof Error ? error.message : String(error);
-                const target = this.method === "popup" ? "macOS ポップアップ" : "macOS 通知センター通知";
+                const target = this.method === "popup" ? "macOS ポップアップ" : "Mac 通知センター通知";
                 this.warn(`${target}を表示できませんでした。監視は継続します: ${detail}`);
             }
         }
