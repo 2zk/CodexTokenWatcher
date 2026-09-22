@@ -159,9 +159,9 @@ export async function runCli(args) {
             settings.push(`${options.notifyBelow}% 以下`);
         }
         if (options.notifyEvery !== undefined) {
-            settings.push(`${options.notifyEvery}% 毎の通知`);
+            settings.push(`${options.notifyEvery}% 毎`);
         }
-        process.stderr.write(`通知設定: 残量 ${settings.join(" + ")} / 通知方法: ${method}\n`);
+        process.stderr.write(`通知設定: 残量 ${settings.join(" + ")} / ${method}\n`);
     }
     let stopping = false;
     let exitCode = 0;

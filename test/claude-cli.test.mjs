@@ -6,6 +6,7 @@ import { tmpdir } from "node:os";
 import { mkdtempSync, rmSync, statSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { runStatusLineFromText, runCli } from "../dist/claude-cli.mjs";
+import { formatClaudeSnapshot } from "../dist/claude-format.mjs";
 import { readCache, writeCache, _setCachePath } from "../dist/claude-cache.mjs";
 
 const cliPath = fileURLToPath(new URL("../dist/claude-cli.mjs", import.meta.url));
@@ -173,6 +174,15 @@ test("--statusline: 同じ値の再送ではキャッシュの受信時刻を新
 
 // --- one-shot モード ---
 
+test("Claude の通知設定を短く表示する", () => {
+    const snapshot = { observedAt: "2026-09-22T00:00:00.000Z", limits: [] };
+    const every = formatClaudeSnapshot(snapshot, false, undefined, "popup", 5);
+    assert.match(every.split("\n")[0], /^最終受信日時: [^\n]+ 【通知設定: 残量 5% 毎 \/ ポップアップ】$/);
+
+    const combined = formatClaudeSnapshot(snapshot, false, 10, "notification", 5);
+    assert.match(combined.split("\n")[0], /^最終受信日時: [^\n]+ 【通知設定: 残量 10% 以下 \+ 5% 毎 \/ Mac 通知センター】$/);
+});
+
 test("one-shot: キャッシュなしはエラー + 終了コード 1", async () => {
     const cachePath = makeCachePath();
     _setCachePath(cachePath);
@@ -268,8 +278,11 @@ test("one-shot: --json でキャッシュを JSON 出力し stale フラグが�
                 resetsAt: new Date((now + 500000) * 1000).toISOString(),
             }],
         });
-        const { stdout, code } = await captureStdoutAsync(() => runCli(["--json"]));
+        const { stdout, stderr, code } = await captureStdoutAsync(() => runCli([
+            "--json", "--notify-below", "30", "--notify-every", "20", "--notify-method", "notification",
+        ]));
         assert.equal(code, 0);
+        assert.equal(stderr, "通知設定: 残量 30% 以下 + 20% 毎 / Mac 通知センター\n");
         const parsed = JSON.parse(stdout.trim());
         assert.equal(parsed.schemaVersion, 1);
         assert.equal(typeof parsed.stale, "boolean");

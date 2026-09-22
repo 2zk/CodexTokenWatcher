@@ -41,11 +41,11 @@ export function formatClaudeSnapshot(snapshot, stale, notifyBelow = undefined, n
         settings.push(`${notifyBelow}% 以下`);
     }
     if (notifyEvery !== undefined) {
-        settings.push(`${notifyEvery}% 毎の通知`);
+        settings.push(`${notifyEvery}% 毎`);
     }
     const notification = settings.length === 0
         ? ""
-        : ` 【通知設定: 残量 ${settings.join(" + ")} / 通知方法: ${notifyMethod === "popup" ? "ポップアップ" : "Mac 通知センター"}】`;
+        : ` 【通知設定: 残量 ${settings.join(" + ")} / ${notifyMethod === "popup" ? "ポップアップ" : "Mac 通知センター"}】`;
     const staleNote = stale ? "（参考値・情報が古い可能性あり）" : "";
     const lines = [`最終受信日時: ${formatDateTime(snapshot.observedAt)}${staleNote}${notification}`];
     if (snapshot.limits.length === 0) {
