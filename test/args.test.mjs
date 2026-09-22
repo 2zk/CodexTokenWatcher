@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { helpText, parseArgs } from "../dist/args.mjs";
+import { helpText, parseArgs } from "../dist/codex-args.mjs";
 import { CliUsageError } from "../dist/types.mjs";
 
 test("引数なしの既定値は one-shot、interval 180秒、popup通知、timeout 15秒", () => {

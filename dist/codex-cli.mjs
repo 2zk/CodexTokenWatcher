@@ -1,10 +1,10 @@
 #!/usr/bin/env node
-import { parseArgs, helpText } from "./args.mjs";
+import { parseArgs, helpText } from "./codex-args.mjs";
 import { realpathSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { CodexAppServer } from "./app-server.mjs";
-import { formatJson, formatSnapshot } from "./format.mjs";
-import { normalizeRateLimits } from "./limits.mjs";
+import { CodexAppServer } from "./codex-app-server.mjs";
+import { formatJson, formatSnapshot } from "./codex-format.mjs";
+import { normalizeRateLimits } from "./codex-limits.mjs";
 import { ThresholdNotifier } from "./notifier.mjs";
 import { AppServerError, CliUsageError } from "./types.mjs";
 const VERSION = "0.1.0";

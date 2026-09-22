@@ -2,10 +2,10 @@ import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
-import { readRateLimitsWithRetry } from "../dist/cli.mjs";
+import { readRateLimitsWithRetry } from "../dist/codex-cli.mjs";
 import { createFakeCodex, readCapturedEvents, waitUntil } from "./helpers/fake-codex.mjs";
 
-const cliPath = fileURLToPath(new URL("../dist/cli.mjs", import.meta.url));
+const cliPath = fileURLToPath(new URL("../dist/codex-cli.mjs", import.meta.url));
 
 function spawnCli(args) {
   const child = spawn(process.execPath, [cliPath, ...args], { stdio: ["ignore", "pipe", "pipe"] });

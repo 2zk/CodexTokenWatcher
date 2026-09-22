@@ -96,7 +96,7 @@ TTY 上の `--watch` は前回表示を更新する。パイプやリダイレ�
 node --test
 ```
 
-直接CLIを実行する場合は `node dist/cli.mjs` を使う。
+直接CLIを実行する場合は `node dist/codex-cli.mjs` を使う。
 
 app-server のプロトコルは [OpenAI 公式 app-server ドキュメント](https://learn.chatgpt.com/docs/app-server) に基づく。接続時は `initialize` の成功後に `initialized` を送り、`account/rateLimits/read` と `account/rateLimits/updated` を利用する。
 
