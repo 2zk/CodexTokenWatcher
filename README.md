@@ -99,3 +99,86 @@ node --test
 直接CLIを実行する場合は `node dist/cli.mjs` を使う。
 
 app-server のプロトコルは [OpenAI 公式 app-server ドキュメント](https://learn.chatgpt.com/docs/app-server) に基づく。接続時は `initialize` の成功後に `initialized` を送り、`account/rateLimits/read` と `account/rateLimits/updated` を利用する。
+
+---
+
+## claude-token-watcher
+
+Claude Code Pro/Max の公式 `statusLine` 機能を使って利用制限の残量を表示・監視する macOS 向けコマンド。
+
+### 前提条件
+
+- macOS、Node.js 20 以上
+- **Claude Code v2.1.251 以降**
+- **Claude Pro または Max プラン**（`statusLine` の利用量データが提供されるプラン）
+
+### statusLine の設定
+
+Claude Code の `~/.claude/settings.json` に以下の `statusLine` キーを追加し、Claude Code を再起動する。既存の設定キーは残す。`<PATH>` はこのリポジトリの絶対パスに置き換える。
+
+```json
+{
+  "statusLine": {
+    "type": "command",
+    "command": "<PATH>/claude-token-watcher --statusline"
+  }
+}
+```
+
+この設定により、Claude Code が `claude-token-watcher --statusline` を呼び出し、利用状況 JSON を stdin に渡す。コマンドは stdout に短い残量表示を返し、値が変わったときに内部キャッシュを更新する。同じ値の再送だけでは受信時刻を更新せず、古い値を新鮮な情報として扱わない。
+
+> **注意**: このツールは `~/.claude/settings.json` や認証情報を読まず、編集もしない。
+
+### 使い方
+
+```sh
+# 最後に受信した利用量を1回表示
+./claude-token-watcher
+
+# JSON で1回表示
+./claude-token-watcher --json
+
+# 表示名と期間で絞り込む（大文字・小文字を区別しない部分一致）
+./claude-token-watcher --filter "five_hour"
+
+# 180秒ごとに表示を更新する（Ctrl+C で終了）
+./claude-token-watcher --watch
+
+# 5分ごとに表示を更新する
+./claude-token-watcher --watch --interval 300
+
+# watch + NDJSON
+./claude-token-watcher --watch --json
+
+# 残量20%以下でポップアップ通知（--watch と組み合わせて使う）
+./claude-token-watcher --watch --notify-below 20
+
+# 残量20%以下で Mac 通知センターへ通知
+./claude-token-watcher --watch --notify-below 20 --notify-method notification
+
+# 残量が20%減るごとに通知する（80%、60%、40%、20%）
+./claude-token-watcher --watch --notify-every 20
+
+# 固定閾値と刻み通知を併用する
+./claude-token-watcher --watch --notify-below 30 --notify-every 20
+```
+
+### 表示形式
+
+```
+最終受信日時: 2026-09-22 10:30:00
+Claude / five_hour / 5時間: 残量 54.5%（使用 45.5%）/ リセット 2026-09-22 15:00:00
+Claude / seven_day / 7日（週次）: 残量 77%（使用 23%）/ リセット 2026-09-29 10:30:00
+```
+
+キャッシュが 300 秒以上古い、またはいずれかの期間のリセット時刻を過ぎている場合は「参考値・情報が古い可能性あり」と注記する。stale 値では通知しない。JSON 出力には `stale` フラグ（boolean）が含まれる。
+
+ヘッダ行は「最終受信日時」であり現在のリアルタイム取得値ではない。
+
+### キャッシュの制限
+
+- キャッシュは `--statusline` が呼ばれたときだけ更新される。**Claude Code が停止中・アイドル中（会話していない状態）は更新されない。**
+- キャッシュは Node.js のユーザー用一時ディレクトリ配下の `claude-token-watcher-<uid>/cache.json` に保存される（ディレクトリ 0700、ファイル 0600）。
+- キャッシュには使用率・リセット時刻・受信日時のみ保存する。トークンや認証情報は含まない。
+
+直接CLIを実行する場合は `node dist/claude-cli.mjs` を使う。

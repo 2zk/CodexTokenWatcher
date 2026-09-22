@@ -273,6 +273,14 @@ test("通知センター用AppleScriptへ通知値をargvで渡す", async () =>
   assert.equal(args.length, 4);
 });
 
+test("Claude 用タイトルを指定しても Codex の既定タイトルは変わらない", async () => {
+  const recorder = recordingExecutor();
+  const notifier = new ThresholdNotifier(20, () => {}, recorder.execute, "popup", undefined, "Claude 利用制限");
+  await notifier.observe(makeSnapshot(makeLimit({ limitId: "claude", window: "five_hour", remainingPercent: 10 })));
+  assert.equal(recorder.calls.length, 1);
+  assert.equal(recorder.calls[0].args[3], "Claude 利用制限");
+});
+
 test("executor失敗は一度だけ警告し、残りのwindow観測を継続する", async () => {
   const warnings = [];
   const recorder = recordingExecutor({ failure: new Error("synthetic executor failure") });

@@ -55,14 +55,16 @@ export class ThresholdNotifier {
     execute;
     method;
     notifyEvery;
+    title;
     states = new Map();
     hasWarned = false;
-    constructor(threshold, warn, execute = defaultNotificationExecutor, method = "popup", notifyEvery = undefined) {
+    constructor(threshold, warn, execute = defaultNotificationExecutor, method = "popup", notifyEvery = undefined, title = "Codex 利用制限") {
         this.threshold = threshold;
         this.warn = warn;
         this.execute = execute;
         this.method = method;
         this.notifyEvery = notifyEvery;
+        this.title = title;
     }
     async observe(snapshot) {
         if (this.threshold === undefined && this.notifyEvery === undefined)
@@ -88,7 +90,7 @@ export class ThresholdNotifier {
                 "-e",
                 this.method === "popup" ? POPUP_APPLESCRIPT : NOTIFICATION_APPLESCRIPT,
                 message,
-                "Codex 利用制限",
+                this.title,
             ]);
         }
         catch (error) {
