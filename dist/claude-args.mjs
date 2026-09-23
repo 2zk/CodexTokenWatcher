@@ -4,7 +4,8 @@ const HELP = `使い方: claude-token-watcher [options]
 
 オプション:
   --statusline               Claude Code の statusLine JSON を stdin から読み、キャッシュして残量を出力する
-  --watch                    Ctrl+C まで定期的に表示を更新する（キャッシュ監視）
+  --watch                    Ctrl+C まで定期的に表示を更新する
+  --source <source>          取得元: auto（API、失敗時キャッシュ）、api（利用量 API のみ）、statusline（キャッシュのみ）（既定: auto）
   --interval <seconds>       更新間隔（既定: 180、60以上の整数）
   --json                     one-shot は JSON、watch は NDJSON で出力する
   --filter <text>            表示名と期間を部分一致で絞り込む（大文字・小文字を区別しない）
@@ -15,8 +16,9 @@ const HELP = `使い方: claude-token-watcher [options]
   --version                  バージョンを表示する
 
 前提条件:
-  Claude Code v2.1.251 以降、Pro または Max プランが必要。
-  ~/.claude/settings.json の statusLine に本コマンドを設定してください。`;
+  Pro または Max プランで Claude Code（またはデスクトップアプリ）にログインしていること。
+  api/auto はキーチェーンの OAuth トークンで非公式の利用量 API を呼ぶ。
+  statusline は Claude Code v2.1.251 以降で、~/.claude/settings.json の statusLine に本コマンドの --statusline を設定する。`;
 
 export function helpText() {
     return HELP;
@@ -50,6 +52,7 @@ export function parseArgs(args) {
         notifyBelow: undefined,
         notifyEvery: undefined,
         notifyMethod: "popup",
+        source: "auto",
     };
     for (let index = 0; index < args.length; index += 1) {
         const arg = args[index];
@@ -90,6 +93,15 @@ export function parseArgs(args) {
                     throw new CliUsageError(`${arg} は 1〜99 の整数で指定してください。`);
                 }
                 options.notifyEvery = Number(value);
+                index += 1;
+                break;
+            }
+            case "--source": {
+                const value = requiredValue(args, index, arg);
+                if (value !== "auto" && value !== "api" && value !== "statusline") {
+                    throw new CliUsageError(`${arg} は auto、api、statusline のいずれかで指定してください。`);
+                }
+                options.source = value;
                 index += 1;
                 break;
             }

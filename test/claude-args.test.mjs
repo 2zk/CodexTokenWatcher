@@ -16,6 +16,18 @@ test("引数なし → run モード・デフォルト値", () => {
     assert.equal(result.options.notifyBelow, undefined);
     assert.equal(result.options.notifyEvery, undefined);
     assert.equal(result.options.filter, undefined);
+    assert.equal(result.options.source, "auto");
+});
+
+test("--source は auto / api / statusline を受け付ける", () => {
+    for (const value of ["auto", "api", "statusline"]) {
+        assert.equal(parseArgs(["--source", value]).options.source, value);
+    }
+});
+
+test("--source の不正値・値なしはエラー", () => {
+    assert.throws(() => parseArgs(["--source", "cache"]), CliUsageError);
+    assert.throws(() => parseArgs(["--source"]), CliUsageError);
 });
 
 test("--statusline フラグが立つ", () => {

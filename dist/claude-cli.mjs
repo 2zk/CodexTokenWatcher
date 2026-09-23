@@ -5,6 +5,7 @@ import { parseArgs, helpText } from "./claude-args.mjs";
 import { normalizeStatusLine, isStale } from "./claude-limits.mjs";
 import { readCache, writeCache, cachePath } from "./claude-cache.mjs";
 import { formatClaudeSnapshot, formatClaudeJson, formatStatusLine } from "./claude-format.mjs";
+import { fetchUsageSnapshot } from "./claude-usage-api.mjs";
 import { ThresholdNotifier } from "./notifier.mjs";
 import { CliUsageError } from "./types.mjs";
 
@@ -118,7 +119,90 @@ async function runStatusLine() {
     return runStatusLineFromText(raw);
 }
 
-async function runWatch(options, notifier, shouldStop, setWake) {
+/**
+ * 利用量 API から snapshot を取得する。取得できた値はキャッシュにも保存する。
+ * auto では失敗時にキャッシュへ切り替え、失敗理由を error として返す。
+ */
+async function loadApiSnapshot(options, fetchSnapshot) {
+    try {
+        const snapshot = await fetchSnapshot();
+        try {
+            writeCache(snapshot);
+        } catch (error) {
+            process.stderr.write(
+                `警告: キャッシュの書き込みに失敗しました: ${error instanceof Error ? error.message : String(error)}\n`,
+            );
+        }
+        return { snapshot, error: undefined };
+    } catch (error) {
+        if (options.source === "api") {
+            throw error;
+        }
+        return { snapshot: readCache(), error };
+    }
+}
+
+function reportFallback(error, hasCache) {
+    const message = error instanceof Error ? error.message : String(error);
+    process.stderr.write(
+        hasCache
+            ? `警告: ${message} キャッシュの値を表示します。\n`
+            : `警告: ${message} キャッシュもありません。\n`,
+    );
+}
+
+function waitSeconds(seconds, setWake) {
+    return new Promise((resolve) => {
+        let done = false;
+        const finish = () => {
+            if (done) return;
+            done = true;
+            clearTimeout(timer);
+            setWake(undefined);
+            resolve();
+        };
+        const timer = setTimeout(finish, seconds * 1_000);
+        setWake(finish);
+    });
+}
+
+async function showSnapshot(snapshot, options, notifier) {
+    const stale = isStale(snapshot);
+    const filtered = filterSnapshot(snapshot, options.filter);
+    writeResult(filtered, stale, options);
+    if (!stale) {
+        await notifier.observe(filtered);
+    }
+}
+
+/** --source auto / api の watch: 利用量 API を一定間隔で呼ぶ。 */
+async function runApiWatch(options, notifier, shouldStop, setWake, fetchSnapshot, wait) {
+    while (!shouldStop()) {
+        let retryAfterSeconds;
+        try {
+            const { snapshot, error } = await loadApiSnapshot(options, fetchSnapshot);
+            if (error !== undefined) {
+                reportFallback(error, snapshot !== null);
+                retryAfterSeconds = error.retryAfterSeconds;
+            }
+            if (shouldStop()) break;
+            if (snapshot !== null) {
+                await showSnapshot(snapshot, options, notifier);
+            }
+        } catch (error) {
+            if (shouldStop()) break;
+            // --source api でも監視は止めず、次の間隔で再試行する
+            reportError(error);
+            retryAfterSeconds = error?.retryAfterSeconds;
+        }
+        if (shouldStop()) break;
+        // 429 の Retry-After が間隔より長ければそれに従う
+        await wait(Math.max(options.intervalSeconds, retryAfterSeconds ?? 0), setWake);
+    }
+}
+
+/** --source statusline の watch: statusLine が書くキャッシュを監視する。 */
+async function runCacheWatch(options, notifier, shouldStop, setWake) {
     let wakeCurrentWait;
     let cacheUpdatePending = false;
     let lastMtime = getCacheMtime();
@@ -216,7 +300,9 @@ async function runWatch(options, notifier, shouldStop, setWake) {
     }
 }
 
-export async function runCli(args) {
+export async function runCli(args, dependencies = {}) {
+    const fetchSnapshot = dependencies.fetchSnapshot ?? fetchUsageSnapshot;
+    const wait = dependencies.waitSeconds ?? waitSeconds;
     let parsed;
     try {
         parsed = parseArgs(args);
@@ -284,12 +370,26 @@ export async function runCli(args) {
     process.on("SIGTERM", onSigterm);
 
     try {
-        if (options.watch) {
-            await runWatch(options, notifier, () => stopping, (nextWake) => {
-                wake = nextWake;
-            });
+        const setWake = (nextWake) => {
+            wake = nextWake;
+        };
+        if (options.watch && options.source === "statusline") {
+            await runCacheWatch(options, notifier, () => stopping, setWake);
+        } else if (options.watch) {
+            await runApiWatch(options, notifier, () => stopping, setWake, fetchSnapshot, wait);
+        } else if (options.source !== "statusline") {
+            // one-shot（API）モード
+            const { snapshot, error } = await loadApiSnapshot(options, fetchSnapshot);
+            if (error !== undefined) {
+                reportFallback(error, snapshot !== null);
+            }
+            if (snapshot === null) {
+                exitCode = 1;
+            } else if (!stopping) {
+                await showSnapshot(snapshot, options, notifier);
+            }
         } else {
-            // one-shot モード
+            // one-shot（キャッシュ）モード
             const snapshot = readCache();
             if (snapshot === null) {
                 process.stderr.write(

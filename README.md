@@ -104,17 +104,36 @@ app-server のプロトコルは [OpenAI 公式 app-server ドキュメント](h
 
 ## claude-token-watcher
 
-Claude Code Pro/Max の公式 `statusLine` 機能を使って利用制限の残量を表示・監視する macOS 向けコマンド。
+Claude Code Pro/Max の利用制限（5時間・7日）の残量を表示・監視する macOS 向けコマンド。ターミナル版 Claude Code を起動していなくても、デスクトップアプリだけで利用できる。
 
 ### 前提条件
 
 - macOS、Node.js 20 以上
-- **Claude Code v2.1.251 以降**
-- **Claude Pro または Max プラン**（`statusLine` の利用量データが提供されるプラン）
+- **Claude Pro または Max プラン**で Claude Code（ターミナル版またはデスクトップアプリ）にログイン済みであること
+- `--source statusline` を使う場合は **Claude Code v2.1.251 以降**
 
-### statusLine の設定
+### 取得元（`--source`）
 
-Claude Code の `~/.claude/settings.json` に以下の `statusLine` キーを追加し、Claude Code を再起動する。既存の設定キーは残す。`<PATH>` はこのリポジトリの絶対パスに置き換える。
+| 値 | 動作 |
+|---|---|
+| `auto`（既定） | 利用量 API から取得する。失敗した場合は警告を出し、キャッシュの値を表示する |
+| `api` | 利用量 API からだけ取得する。失敗した場合はエラーにする（watch では次の間隔で再試行する） |
+| `statusline` | API を呼ばず、`--statusline` が書いたキャッシュだけを表示する（従来の動作） |
+
+> **注意: 利用量 API は Anthropic が公開していない非公式 API です。**
+> Claude Code 本体が `/usage` 表示のために使っているエンドポイント（`https://api.anthropic.com/api/oauth/usage`）を、同じ OAuth トークンで呼び出している。公開仕様やサポートはなく、エンドポイント・応答形式・呼び出し回数の制限は予告なく変わる可能性がある。変更されて取得できなくなった場合は、`--source statusline` を使うか、`auto` のままキャッシュ（statusLine 設定時）の値で表示を続ける。
+
+API 取得時の動作:
+
+- macOS キーチェーンの `Claude Code-credentials` から OAuth アクセストークンを読み取り、API 呼び出しにだけ使う。トークンは表示・保存しない。初回はキーチェーンへのアクセス許可ダイアログが表示される場合がある。
+- トークンの更新（refresh）は行わない。期限切れの場合は、Claude Code かデスクトップアプリを使うと更新される。
+- 呼び出しでトークン（利用量）は消費しない。ただし API には呼び出し回数の制限があるため、`--interval` を短くしすぎないこと。HTTP 429 で `Retry-After` が返された場合は、その秒数と `--interval` の長い方だけ待つ。
+- API から取得できた値はキャッシュにも保存する。
+- 取得するのは 5時間（`five_hour`）と 7日（`seven_day`）の制限だけ。モデル別の週次制限などは表示しない。
+
+### statusLine の設定（任意）
+
+`--source statusline` を使う場合、または `auto` で API 失敗時の代替値を用意したい場合に設定する。Claude Code の `~/.claude/settings.json` に以下の `statusLine` キーを追加し、Claude Code を再起動する。既存の設定キーは残す。`<PATH>` はこのリポジトリの絶対パスに置き換える。
 
 ```json
 {
@@ -127,13 +146,21 @@ Claude Code の `~/.claude/settings.json` に以下の `statusLine` キーを追
 
 この設定により、Claude Code が `claude-token-watcher --statusline` を呼び出し、利用状況 JSON を stdin に渡す。コマンドは stdout に短い残量表示を返し、値が変わったときに内部キャッシュを更新する。同じ値の再送だけでは受信時刻を更新せず、古い値を新鮮な情報として扱わない。
 
-> **注意**: このツールは `~/.claude/settings.json` や認証情報を読まず、編集もしない。
+statusLine はターミナル版 Claude Code の対話画面でだけ実行され、デスクトップアプリでは実行されない。また、利用制限の値はそのセッションで API 応答を受け取った後にだけ渡されるため、起動しただけではキャッシュは作られない。
+
+> **注意**: このツールは `~/.claude/settings.json` を読まず、編集もしない。
 
 ### 使い方
 
 ```sh
-# 最後に受信した利用量を1回表示
+# 利用量を1回表示（API から取得、失敗時はキャッシュ）
 ./claude-token-watcher
+
+# statusLine のキャッシュだけを使う（API を呼ばない）
+./claude-token-watcher --source statusline
+
+# API だけを使う（失敗時はエラー）
+./claude-token-watcher --source api
 
 # JSON で1回表示
 ./claude-token-watcher --json
@@ -173,11 +200,11 @@ Claude / seven_day / 7日（週次）: 残量 77%（使用 23%）/ リセット 
 
 キャッシュが 300 秒以上古い、またはいずれかの期間のリセット時刻を過ぎている場合は「参考値・情報が古い可能性あり」と注記する。stale 値では通知しない。JSON 出力には `stale` フラグ（boolean）が含まれる。
 
-ヘッダ行は「最終受信日時」であり現在のリアルタイム取得値ではない。
+ヘッダ行の「最終受信日時」は、API から取得した場合はその取得日時、キャッシュを表示した場合は値を最後に受信した日時を示す。
 
 ### キャッシュの制限
 
-- キャッシュは `--statusline` が呼ばれたときだけ更新される。**Claude Code が停止中・アイドル中（会話していない状態）は更新されない。**
+- キャッシュは API から取得できたとき、または `--statusline` が呼ばれたときだけ更新される。`--source statusline` では、**Claude Code が停止中・アイドル中（会話していない状態）は更新されない。**
 - キャッシュは Node.js のユーザー用一時ディレクトリ配下の `claude-token-watcher-<uid>/cache.json` に保存される（ディレクトリ 0700、ファイル 0600）。
 - キャッシュには使用率・リセット時刻・受信日時のみ保存する。トークンや認証情報は含まない。
 
