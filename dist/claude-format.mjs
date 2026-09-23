@@ -26,14 +26,14 @@ function formatDateTime(isoString) {
     return new Intl.DateTimeFormat("ja-JP", {
         dateStyle: "medium",
         timeStyle: "medium",
-    }).format(new Date(isoString));
+    }).format(new Date(isoString)).replaceAll("/", "-");
 }
 function label(limit) {
     return limit.limitName ?? limit.limitId;
 }
 /**
  * Claude snapshot を人向けに整形する。
- * 「最終受信日時」と表示し、stale 時は注記を加える。
+ * 「最終受信日時」と表示し、stale 時は末尾に注記を加える。
  */
 export function formatClaudeSnapshot(snapshot, stale, notifyBelow = undefined, notifyMethod = "popup", notifyEvery = undefined) {
     const settings = [];
@@ -45,12 +45,10 @@ export function formatClaudeSnapshot(snapshot, stale, notifyBelow = undefined, n
     }
     const notification = settings.length === 0
         ? ""
-        : ` 【通知設定: 残量 ${settings.join(" + ")} / ${notifyMethod === "popup" ? "ポップアップ" : "Mac 通知センター"}】`;
-    const staleNote = stale ? "（参考値・情報が古い可能性あり）" : "";
-    const lines = [`最終受信日時: ${formatDateTime(snapshot.observedAt)}${staleNote}${notification}`];
+        : `【通知設定: 残量 ${settings.join(" + ")} / ${notifyMethod === "popup" ? "ポップアップ" : "Mac 通知センター"}】`;
+    const lines = [`最終受信日時: ${formatDateTime(snapshot.observedAt)}${notification}`];
     if (snapshot.limits.length === 0) {
         lines.push("表示可能な利用制限の情報がありません。");
-        return lines.join("\n");
     }
     for (const limit of snapshot.limits) {
         lines.push(
@@ -58,6 +56,9 @@ export function formatClaudeSnapshot(snapshot, stale, notifyBelow = undefined, n
             `残量 ${percent(limit.remainingPercent)}（使用 ${percent(limit.usedPercent)}）` +
             `/ リセット ${formatDateTime(limit.resetsAt)}`,
         );
+    }
+    if (stale) {
+        lines.push("※ 最新データが取得できていません");
     }
     return lines.join("\n");
 }

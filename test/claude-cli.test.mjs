@@ -177,10 +177,10 @@ test("--statusline: 同じ値の再送ではキャッシュの受信時刻を新
 test("Claude の通知設定を短く表示する", () => {
     const snapshot = { observedAt: "2026-09-22T00:00:00.000Z", limits: [] };
     const every = formatClaudeSnapshot(snapshot, false, undefined, "popup", 5);
-    assert.match(every.split("\n")[0], /^最終受信日時: [^\n]+ 【通知設定: 残量 5% 毎 \/ ポップアップ】$/);
+    assert.match(every.split("\n")[0], /^最終受信日時: [^\n]+【通知設定: 残量 5% 毎 \/ ポップアップ】$/);
 
     const combined = formatClaudeSnapshot(snapshot, false, 10, "notification", 5);
-    assert.match(combined.split("\n")[0], /^最終受信日時: [^\n]+ 【通知設定: 残量 10% 以下 \+ 5% 毎 \/ Mac 通知センター】$/);
+    assert.match(combined.split("\n")[0], /^最終受信日時: [^\n]+【通知設定: 残量 10% 以下 \+ 5% 毎 \/ Mac 通知センター】$/);
 });
 
 test("one-shot: キャッシュなしはエラー + 終了コード 1", async () => {
@@ -220,16 +220,18 @@ test("one-shot: 新鮮なキャッシュを人向けに表示する", async () =
         const { stdout, code } = await captureStdoutAsync(() => runCli(["--source", "statusline"]));
         assert.equal(code, 0);
         assert.match(stdout, /最終受信日時:/);
-        assert.doesNotMatch(stdout, /参考値/);
+        assert.doesNotMatch(stdout, /最新データが取得できていません/);
         assert.match(stdout, /five_hour/);
         assert.match(stdout, /54\.5%/);
+        assert.match(stdout, /^最終受信日時: \d{4}-\d{2}-\d{2} /);
+        assert.match(stdout, /リセット \d{4}-\d{2}-\d{2} /);
     } finally {
         try { rmSync(cachePath); } catch {}
         _setCachePath(null);
     }
 });
 
-test("one-shot: stale なキャッシュは参考値注記を含む", async () => {
+test("one-shot: stale なキャッシュは末尾に注記を含む", async () => {
     const cachePath = makeCachePath();
     _setCachePath(cachePath);
     try {
@@ -251,7 +253,8 @@ test("one-shot: stale なキャッシュは参考値注記を含む", async () =
         });
         const { stdout, code } = await captureStdoutAsync(() => runCli(["--source", "statusline"]));
         assert.equal(code, 0);
-        assert.match(stdout, /参考値/);
+        assert.doesNotMatch(stdout, /参考値/);
+        assert.match(stdout.trimEnd().split("\n").at(-1), /^※ 最新データが取得できていません$/);
     } finally {
         try { rmSync(cachePath); } catch {}
         _setCachePath(null);

@@ -20,7 +20,7 @@ function resetAt(value) {
     return new Intl.DateTimeFormat("ja-JP", {
         dateStyle: "medium",
         timeStyle: "medium",
-    }).format(new Date(value));
+    }).format(new Date(value)).replaceAll("/", "-");
 }
 function label(limit) {
     return limit.limitName ?? limit.limitId;
@@ -35,7 +35,7 @@ export function formatSnapshot(snapshot, notifyBelow = undefined, notifyMethod =
     }
     const notification = settings.length === 0
         ? ""
-        : ` 【通知設定: 残量 ${settings.join(" + ")} / ${notifyMethod === "popup" ? "ポップアップ" : "Mac 通知センター"}】`;
+        : `【通知設定: 残量 ${settings.join(" + ")} / ${notifyMethod === "popup" ? "ポップアップ" : "Mac 通知センター"}】`;
     const lines = [`取得日時: ${resetAt(snapshot.observedAt)}${notification}`];
     if (snapshot.limits.length === 0) {
         lines.push("表示可能な利用制限は返されませんでした。");

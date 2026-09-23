@@ -133,7 +133,7 @@ test("人向け出力は通知閾値の指定時だけ取得日時行に設定�
   const withNotificationLines = withNotificationResult.stdout.trimEnd().split("\n");
   assert.match(
     withNotificationLines[0],
-    /^取得日時: [^\n]+ 【通知設定: 残量 20% 以下 \/ Mac 通知センター】$/,
+    /^取得日時: [^\n]+【通知設定: 残量 20% 以下 \/ Mac 通知センター】$/,
   );
   assert.doesNotMatch(withNotificationLines.slice(1).join("\n"), /通知設定:/);
 
@@ -164,7 +164,7 @@ test("人向け出力は刻み通知の設定を取得日時行に含める", as
   const lines = result.stdout.trimEnd().split("\n");
   assert.match(
     lines[0],
-    /^取得日時: [^\n]+ 【通知設定: 残量 20% 毎 \/ Mac 通知センター】$/,
+    /^取得日時: [^\n]+【通知設定: 残量 20% 毎 \/ Mac 通知センター】$/,
   );
   assert.doesNotMatch(lines.slice(1).join("\n"), /通知設定:/);
 });

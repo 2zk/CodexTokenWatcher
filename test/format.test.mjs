@@ -32,8 +32,9 @@ test("5時間、週次、任意の分・時間・日を表示する", () => {
 test("human表示に取得日時、label、window、残量、使用率、ローカルresetを含める", () => {
   const output = formatSnapshot(snapshotWithDurations([300]));
   const lines = output.split("\n");
-  assert.match(lines[0], /^取得日時: [^\n]+$/);
+  assert.match(lines[0], /^取得日時: \d{4}-\d{2}-\d{2} \d{1,2}:\d{2}:\d{2}$/);
   assert.match(lines[1], /^Named limit \/ primary/);
+  assert.match(lines[1], /リセット \d{4}-\d{2}-\d{2} /);
   assert.doesNotMatch(output, /通知設定:/);
   assert.match(output, /Named limit \/ primary/);
   assert.match(output, /残量 76\.5%（使用 23\.5%）/);
@@ -47,7 +48,7 @@ test("通知閾値を指定すると取得日時行に閾値とMac 通知セン�
   assert.equal(lines.length, 2);
   assert.match(
     lines[0],
-    /^取得日時: [^\n]+ 【通知設定: 残量 70% 以下 \/ Mac 通知センター】$/,
+    /^取得日時: [^\n]+【通知設定: 残量 70% 以下 \/ Mac 通知センター】$/,
   );
   assert.match(lines[1], /^Named limit \/ primary \/ 5時間:/);
   assert.doesNotMatch(lines[1], /通知設定:/);
@@ -58,7 +59,7 @@ test("popup方式は取得日時行にポップアップと表示する", () => 
 
   assert.match(
     lines[0],
-    /^取得日時: [^\n]+ 【通知設定: 残量 20% 以下 \/ ポップアップ】$/,
+    /^取得日時: [^\n]+【通知設定: 残量 20% 以下 \/ ポップアップ】$/,
   );
   assert.equal(lines.filter((line) => line.includes("通知設定:")).length, 1);
 });
@@ -68,7 +69,7 @@ test("刻み通知を指定すると取得日時行に通知間隔と通知方�
 
   assert.match(
     lines[0],
-    /^取得日時: [^\n]+ 【通知設定: 残量 20% 毎 \/ Mac 通知センター】$/,
+    /^取得日時: [^\n]+【通知設定: 残量 20% 毎 \/ Mac 通知センター】$/,
   );
   assert.equal(lines.filter((line) => line.includes("通知設定:")).length, 1);
 });
@@ -78,7 +79,7 @@ test("固定閾値と刻み通知を併用すると両方の設定を取得日�
 
   assert.match(
     lines[0],
-    /^取得日時: [^\n]+ 【通知設定: 残量 30% 以下 \+ 20% 毎 \/ ポップアップ】$/,
+    /^取得日時: [^\n]+【通知設定: 残量 30% 以下 \+ 20% 毎 \/ ポップアップ】$/,
   );
   assert.equal(lines.filter((line) => line.includes("通知設定:")).length, 1);
 });
