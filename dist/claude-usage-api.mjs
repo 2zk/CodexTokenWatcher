@@ -63,7 +63,7 @@ export function parseCredentials(text, nowMs = Date.now()) {
         throw new UsageApiError("Claude Code の認証情報に OAuth トークンがありません。Pro/Max プランでログインしてください。");
     }
     if (typeof oauth.expiresAt === "number" && Number.isFinite(oauth.expiresAt) && oauth.expiresAt <= nowMs) {
-        throw new UsageApiError("Claude Code の OAuth トークンが期限切れです。Claude Code かデスクトップアプリを使うと更新されます。");
+        throw new UsageApiError("Claude Code の OAuth トークンが期限切れです。ターミナル版 Claude Code（claude コマンド）を起動すると更新されます（デスクトップアプリの利用では更新されません）。");
     }
     return oauth.accessToken;
 }
@@ -101,7 +101,7 @@ export async function requestUsage(token, fetchImpl = fetch) {
     }
     if (response.status === 401 || response.status === 403) {
         throw new UsageApiError(
-            `利用量 API の認証に失敗しました（HTTP ${response.status}）。Claude Code かデスクトップアプリで再ログインしてください。`,
+            `利用量 API の認証に失敗しました（HTTP ${response.status}）。ターミナル版 Claude Code（claude コマンド）で再ログインしてください。`,
         );
     }
     if (response.status === 429) {

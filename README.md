@@ -104,12 +104,12 @@ app-server のプロトコルは [OpenAI 公式 app-server ドキュメント](h
 
 ## claude-token-watcher
 
-Claude Code Pro/Max の利用制限（5時間・7日）の残量を表示・監視する macOS 向けコマンド。ターミナル版 Claude Code を起動していなくても、デスクトップアプリだけで利用できる。
+Claude Code Pro/Max の利用制限（5時間・7日）の残量を表示・監視する macOS 向けコマンド。statusLine を設定していなくても、キーチェーンの OAuth トークンで利用量を取得できる。ただしトークンはターミナル版 Claude Code を起動したときだけ更新されるため、デスクトップアプリだけの利用では期限切れになる。
 
 ### 前提条件
 
 - macOS、Node.js 20 以上
-- **Claude Pro または Max プラン**で Claude Code（ターミナル版またはデスクトップアプリ）にログイン済みであること
+- **Claude Pro または Max プラン**でターミナル版 Claude Code にログイン済みであること（キーチェーンの `Claude Code-credentials` はターミナル版が作成・更新する）
 - `--source statusline` を使う場合は **Claude Code v2.1.251 以降**
 
 ### 取得元（`--source`）
@@ -126,7 +126,7 @@ Claude Code Pro/Max の利用制限（5時間・7日）の残量を表示・監�
 API 取得時の動作:
 
 - macOS キーチェーンの `Claude Code-credentials` から OAuth アクセストークンを読み取り、API 呼び出しにだけ使う。トークンは表示・保存しない。初回はキーチェーンへのアクセス許可ダイアログが表示される場合がある。
-- トークンの更新（refresh）は行わない。期限切れの場合は、Claude Code かデスクトップアプリを使うと更新される。
+- トークンの更新（refresh）は行わない。期限切れの場合は、ターミナル版 Claude Code（`claude` コマンド）を起動すると更新される。デスクトップアプリ（Code タブを含む）はアプリ側で別に認証を管理しており、キーチェーンの `Claude Code-credentials` を更新しない。
 - 呼び出しでトークン（利用量）は消費しない。ただし API には呼び出し回数の制限があるため、`--interval` を短くしすぎないこと。HTTP 429 で `Retry-After` が返された場合は、その秒数と `--interval` の長い方だけ待つ。
 - API から取得できた値はキャッシュにも保存する。
 - 取得するのは 5時間（`five_hour`）と 7日（`seven_day`）の制限だけ。モデル別の週次制限などは表示しない。

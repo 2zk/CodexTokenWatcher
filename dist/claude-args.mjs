@@ -16,8 +16,9 @@ const HELP = `使い方: claude-token-watcher [options]
   --version                  バージョンを表示する
 
 前提条件:
-  Pro または Max プランで Claude Code（またはデスクトップアプリ）にログインしていること。
+  Pro または Max プランでターミナル版 Claude Code にログインしていること。
   api/auto はキーチェーンの OAuth トークンで非公式の利用量 API を呼ぶ。
+  トークンはターミナル版 Claude Code の起動時に更新され、デスクトップアプリの利用では更新されない。
   statusline は Claude Code v2.1.251 以降で、~/.claude/settings.json の statusLine に本コマンドの --statusline を設定する。`;
 
 export function helpText() {
