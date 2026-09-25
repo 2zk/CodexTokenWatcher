@@ -34,6 +34,35 @@ function readPeriod(raw, window, windowDurationMins) {
             : null,
     };
 }
+/** モデル別の週次制限の limitId を表示名から作る（例: "Fable" → "claude-fable"）。作れなければ null。 */
+export function modelLimitId(displayName) {
+    if (typeof displayName !== "string") {
+        return null;
+    }
+    const slug = displayName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+    return slug === "" ? null : `claude-${slug}`;
+}
+/**
+ * モデル別の週次制限（例: Fable）を内部形式で作る。
+ * 通知の判定は limitId と window の組で行うため、モデルごとに limitId を分ける。
+ */
+export function modelScopedLimit(displayName, usedPercent, resetsAtEpochSeconds) {
+    const limitId = modelLimitId(displayName);
+    if (limitId === null) {
+        return null;
+    }
+    const used = clamp(usedPercent, 0, 100);
+    return {
+        limitId,
+        limitName: `Claude ${displayName.trim()}`,
+        window: "seven_day",
+        windowDurationMins: 10080,
+        usedPercent: used,
+        remainingPercent: clamp(100 - used, 0, 100),
+        resetsAtEpochSeconds,
+        resetsAt: resetsAtEpochSeconds === null ? null : new Date(resetsAtEpochSeconds * 1000).toISOString(),
+    };
+}
 /**
  * Claude Code statusLine JSON を内部 snapshot 形式へ正規化する。
  * 存在する期間だけを limits に含め、欠落フィールドは推測しない。

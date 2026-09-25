@@ -169,3 +169,33 @@ test("writeCache 後の limits に必須フィールドがそろっている", (
         teardown();
     }
 });
+
+test("モデル別の週次制限もラウンドトリップし、不整合な値は拒否する", () => {
+    setup();
+    try {
+        const fable = {
+            limitId: "claude-fable",
+            limitName: "Claude Fable",
+            window: "seven_day",
+            windowDurationMins: 10080,
+            usedPercent: 5,
+            remainingPercent: 95,
+            resetsAtEpochSeconds: 1720500000,
+            resetsAt: "2024-07-09T04:40:00.000Z",
+        };
+        writeCache({ ...sampleSnapshot, limits: [...sampleSnapshot.limits, fable] });
+        assert.deepEqual(readCache().limits[2], fable);
+
+        for (const broken of [
+            { ...fable, limitId: "claude-other" },
+            { ...fable, limitName: "Fable" },
+            { ...fable, window: "five_hour", windowDurationMins: 300 },
+            { ...fable, usedPercent: 101 },
+        ]) {
+            writeCache({ ...sampleSnapshot, limits: [broken] });
+            assert.equal(readCache(), null);
+        }
+    } finally {
+        teardown();
+    }
+});

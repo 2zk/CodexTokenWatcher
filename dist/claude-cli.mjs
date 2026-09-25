@@ -91,6 +91,7 @@ export async function runStatusLineFromText(text) {
         const unchanged = previous !== null &&
             previous.limits.length === snapshot.limits.length &&
             previous.limits.every((limit, index) =>
+                limit.limitId === snapshot.limits[index].limitId &&
                 limit.window === snapshot.limits[index].window &&
                 limit.usedPercent === snapshot.limits[index].usedPercent &&
                 limit.resetsAtEpochSeconds === snapshot.limits[index].resetsAtEpochSeconds,

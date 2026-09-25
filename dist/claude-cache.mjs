@@ -2,6 +2,7 @@ import { lstatSync, mkdirSync, readFileSync, writeFileSync, renameSync } from "n
 import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 import { randomBytes } from "node:crypto";
+import { modelLimitId, modelScopedLimit } from "./claude-limits.mjs";
 
 /** テスト用のキャッシュパスオーバーライド。null なら自動決定。 */
 let _cachePathOverride = null;
@@ -41,7 +42,29 @@ function isRecord(value) {
     return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+/** モデル別の週次制限（例: Claude Fable）を読む。不正なら null。 */
+function readModelLimit(value) {
+    if (typeof value.limitName !== "string" || !value.limitName.startsWith("Claude ")) {
+        return null;
+    }
+    const displayName = value.limitName.slice("Claude ".length);
+    if (modelLimitId(displayName) !== value.limitId || value.window !== "seven_day" ||
+        value.windowDurationMins !== 10_080 ||
+        typeof value.usedPercent !== "number" || !Number.isFinite(value.usedPercent) ||
+        value.usedPercent < 0 || value.usedPercent > 100) {
+        return null;
+    }
+    const reset = value.resetsAtEpochSeconds;
+    if (reset !== null && (!Number.isSafeInteger(reset) || Number.isNaN(new Date(reset * 1000).getTime()))) {
+        return null;
+    }
+    return modelScopedLimit(displayName, value.usedPercent, reset);
+}
+
 function readLimit(value) {
+    if (isRecord(value) && typeof value.limitId === "string" && value.limitId.startsWith("claude-")) {
+        return readModelLimit(value);
+    }
     if (!isRecord(value) || value.limitId !== "claude" || value.limitName !== "Claude") {
         return null;
     }

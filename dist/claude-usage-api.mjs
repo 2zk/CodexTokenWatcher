@@ -1,4 +1,5 @@
 import { execFile } from "node:child_process";
+import { modelScopedLimit } from "./claude-limits.mjs";
 
 /**
  * Claude Code の利用量 API（非公式）から利用制限を取得する。
@@ -146,9 +147,49 @@ function readWindow(raw, spec) {
     };
 }
 
+function readResetsAt(value) {
+    if (typeof value === "number" && Number.isFinite(value)) {
+        const seconds = Math.floor(value);
+        return Number.isNaN(new Date(seconds * 1000).getTime()) ? null : seconds;
+    }
+    if (typeof value === "string") {
+        const ms = Date.parse(value);
+        return Number.isNaN(ms) ? null : Math.floor(ms / 1000);
+    }
+    return null;
+}
+
+/**
+ * limits[] のモデル別週次制限（kind: "weekly_scoped"）を読む。
+ * 形式は Claude Code 本体の実装から読み取ったもので、公開仕様ではない。
+ */
+function readModelScoped(rawLimits) {
+    if (!Array.isArray(rawLimits)) {
+        return [];
+    }
+    const limits = [];
+    const seen = new Set();
+    for (const raw of rawLimits) {
+        if (!isRecord(raw) || raw.kind !== "weekly_scoped") {
+            continue;
+        }
+        const model = isRecord(raw.scope) && isRecord(raw.scope.model) ? raw.scope.model : undefined;
+        const percent = raw.percent;
+        if (model === undefined || typeof percent !== "number" || !Number.isFinite(percent)) {
+            continue;
+        }
+        const limit = modelScopedLimit(model.display_name, percent, readResetsAt(raw.resets_at));
+        if (limit !== null && !seen.has(limit.limitId)) {
+            seen.add(limit.limitId);
+            limits.push(limit);
+        }
+    }
+    return limits;
+}
+
 /**
  * 利用量 API の応答を内部 snapshot 形式へ正規化する。
- * statusLine と同じ five_hour / seven_day だけを扱い、欠けた期間は推測しない。
+ * five_hour / seven_day と、limits[] のモデル別週次制限（例: Fable）を扱う。欠けた期間は推測しない。
  */
 export function normalizeUsageResponse(json, receivedAt = new Date()) {
     const record = isRecord(json) ? json : {};
@@ -159,6 +200,7 @@ export function normalizeUsageResponse(json, receivedAt = new Date()) {
             limits.push(limit);
         }
     }
+    limits.push(...readModelScoped(record.limits));
     return {
         schemaVersion: 1,
         receivedAt: Math.floor(receivedAt.getTime() / 1000),
@@ -174,7 +216,7 @@ export async function fetchUsageSnapshot(dependencies = {}) {
     const json = await requestUsage(token, dependencies.fetchImpl ?? fetch);
     const snapshot = normalizeUsageResponse(json);
     if (snapshot.limits.length === 0) {
-        throw new UsageApiError("利用量 API の応答に 5時間・7日の利用制限が含まれていません。");
+        throw new UsageApiError("利用量 API の応答に利用制限が含まれていません。");
     }
     return snapshot;
 }

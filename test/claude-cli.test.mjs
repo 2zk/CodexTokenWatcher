@@ -455,6 +455,35 @@ test("one-shot auto: API の値を表示し、キャッシュにも保存する"
     }
 });
 
+test("one-shot auto: モデル別の週次制限を表示し --filter で絞り込める", async () => {
+    const cachePath = makeCachePath();
+    _setCachePath(cachePath);
+    try {
+        const snapshot = apiSnapshot(30);
+        snapshot.limits.push({
+            ...snapshot.limits[0],
+            limitId: "claude-fable",
+            limitName: "Claude Fable",
+            window: "seven_day",
+            windowDurationMins: 10080,
+            usedPercent: 5,
+            remainingPercent: 95,
+        });
+        const text = await captureStdoutAsync(() => runCli([], { fetchSnapshot: async () => snapshot }));
+        assert.equal(text.code, 0);
+        assert.match(text.stdout, /Claude Fable \/ seven_day \/ 7日（週次）: 残量 95%（使用 5%）/);
+        const filtered = await captureStdoutAsync(() => runCli(["--json", "--filter", "fable"], {
+            fetchSnapshot: async () => snapshot,
+        }));
+        const limits = JSON.parse(snapshotLines(filtered.stdout)[0]).limits;
+        assert.deepEqual(limits.map((l) => l.limitId), ["claude-fable"]);
+        assert.equal(readCache().limits[1].limitId, "claude-fable");
+    } finally {
+        try { rmSync(cachePath); } catch {}
+        _setCachePath(null);
+    }
+});
+
 test("one-shot auto: API 失敗時は警告してキャッシュを表示する", async () => {
     const cachePath = makeCachePath();
     _setCachePath(cachePath);

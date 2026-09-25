@@ -92,6 +92,41 @@ test("normalizeUsageResponse: null・不正値の期間は除外し、範囲外�
 
 // --- API 呼び出し ---
 
+test("normalizeUsageResponse は limits[] のモデル別週次制限を読む", () => {
+    const snapshot = normalizeUsageResponse({
+        ...SAMPLE,
+        limits: [
+            { kind: "weekly_scoped", scope: { model: { display_name: "Fable" } }, percent: 5, resets_at: 1_790_600_000 },
+            { kind: "weekly_scoped", scope: { model: { display_name: "Big Model" } }, percent: 12.5, resets_at: "2026-10-02T10:59:00Z" },
+            { kind: "weekly_scoped", scope: { model: { display_name: "Fable" } }, percent: 50 },
+            { kind: "weekly_scoped", scope: { model: { display_name: "!!" } }, percent: 1 },
+            { kind: "weekly_scoped", scope: {}, percent: 1 },
+            { kind: "weekly_scoped", scope: { model: { display_name: "NoPercent" } } },
+            { kind: "five_hour", percent: 1 },
+            null,
+        ],
+    });
+    assert.deepEqual(
+        snapshot.limits.map((l) => [l.limitId, l.limitName, l.window]),
+        [
+            ["claude", "Claude", "five_hour"],
+            ["claude", "Claude", "seven_day"],
+            ["claude-fable", "Claude Fable", "seven_day"],
+            ["claude-big-model", "Claude Big Model", "seven_day"],
+        ],
+    );
+    const [, , fable, big] = snapshot.limits;
+    assert.equal(fable.usedPercent, 5);
+    assert.equal(fable.remainingPercent, 95);
+    assert.equal(fable.windowDurationMins, 10_080);
+    assert.equal(fable.resetsAtEpochSeconds, 1_790_600_000);
+    assert.equal(big.resetsAt, "2026-10-02T10:59:00.000Z");
+});
+
+test("normalizeUsageResponse: limits[] が配列でなければ無視する", () => {
+    assert.equal(normalizeUsageResponse({ ...SAMPLE, limits: { kind: "weekly_scoped" } }).limits.length, 2);
+});
+
 test("requestUsage は Bearer トークンと beta ヘッダで GET する", async () => {
     let captured;
     const json = await requestUsage(TOKEN, async (url, init) => {
