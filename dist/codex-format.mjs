@@ -1,5 +1,7 @@
+import { alignColumns } from "./align-columns.mjs";
+// 桁をそろえるため常に小数1桁で表す。
 function percent(value) {
-    return `${Number.isInteger(value) ? value : value.toFixed(1)}%`;
+    return `${value.toFixed(1)}%`;
 }
 function duration(value) {
     if (value === null)
@@ -25,6 +27,17 @@ function resetAt(value) {
 function label(limit) {
     return limit.limitName ?? limit.limitId;
 }
+/** 利用可能なリセットクレジットの件数と内訳を1行で表す。 */
+function resetCreditsLine(resetCredits) {
+    const available = resetCredits.credits
+        .filter((credit) => credit.status === "available")
+        .sort((a, b) => (a.expiresAt ?? "").localeCompare(b.expiresAt ?? ""));
+    const count = resetCredits.availableCount ?? available.length;
+    const details = available
+        .map((credit) => `${credit.title ?? credit.resetType ?? "不明"} / 期限 ${resetAt(credit.expiresAt)}`)
+        .join("、");
+    return `リセットクレジット: 利用可能 ${count}件${details === "" ? "" : `（${details}）`}`;
+}
 export function formatSnapshot(snapshot, notifyBelow = undefined, notifyMethod = "popup", notifyEvery = undefined) {
     const settings = [];
     if (notifyBelow !== undefined) {
@@ -39,10 +52,20 @@ export function formatSnapshot(snapshot, notifyBelow = undefined, notifyMethod =
     const lines = [`取得日時: ${resetAt(snapshot.observedAt)}${notification}`];
     if (snapshot.limits.length === 0) {
         lines.push("表示可能な利用制限は返されませんでした。");
-        return lines.join("\n");
     }
-    for (const limit of snapshot.limits) {
-        lines.push(`${label(limit)} / ${limit.window} / ${duration(limit.windowDurationMins)}: 残量 ${percent(limit.remainingPercent)}（使用 ${percent(limit.usedPercent)}）/ リセット ${resetAt(limit.resetsAt)}`);
+    lines.push(...alignColumns(snapshot.limits.map((limit) => [
+        label(limit),
+        " / ",
+        limit.window,
+        " / ",
+        `${duration(limit.windowDurationMins)}:`,
+        " 残量 ",
+        percent(limit.remainingPercent),
+        " / リセット ",
+        resetAt(limit.resetsAt),
+    ])));
+    if (snapshot.resetCredits !== undefined) {
+        lines.push(resetCreditsLine(snapshot.resetCredits));
     }
     return lines.join("\n");
 }

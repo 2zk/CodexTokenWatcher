@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { displayWidth } from "../dist/align-columns.mjs";
 import { formatJson, formatSnapshot } from "../dist/codex-format.mjs";
 
 function snapshotWithDurations(durations) {
@@ -20,7 +21,8 @@ function snapshotWithDurations(durations) {
 }
 
 test("5時間、週次、任意の分・時間・日を表示する", () => {
-  const output = formatSnapshot(snapshotWithDurations([300, 10_080, 45, 120, 2_880, null]));
+  // 桁合わせの空白は1つに詰めて比較する
+  const output = formatSnapshot(snapshotWithDurations([300, 10_080, 45, 120, 2_880, null])).replace(/ +/g, " ");
   assert.match(output, /Named limit \/ primary \/ 5時間/);
   assert.match(output, /id-1 \/ secondary \/ 7日（週次）/);
   assert.match(output, /id-2 \/ primary \/ 45分/);
@@ -29,7 +31,7 @@ test("5時間、週次、任意の分・時間・日を表示する", () => {
   assert.match(output, /id-5 \/ secondary \/ 不明/);
 });
 
-test("human表示に取得日時、label、window、残量、使用率、ローカルresetを含める", () => {
+test("human表示に取得日時、label、window、残量、ローカルresetを含める", () => {
   const output = formatSnapshot(snapshotWithDurations([300]));
   const lines = output.split("\n");
   assert.match(lines[0], /^取得日時: \d{4}-\d{2}-\d{2} \d{1,2}:\d{2}:\d{2}$/);
@@ -37,8 +39,25 @@ test("human表示に取得日時、label、window、残量、使用率、ロー�
   assert.match(lines[1], /リセット \d{4}-\d{2}-\d{2} /);
   assert.doesNotMatch(output, /通知設定:/);
   assert.match(output, /Named limit \/ primary/);
-  assert.match(output, /残量 76\.5%（使用 23\.5%）/);
+  assert.match(output, /残量 76\.5% \/ リセット/);
+  assert.doesNotMatch(output, /使用/);
   assert.match(output, /リセット (?!不明)/);
+});
+
+test("human表示は各行の区切りを表示幅でそろえ、残量を小数1桁で表す", () => {
+  const snapshot = snapshotWithDurations([300, 10_080, 45]);
+  snapshot.limits[1].remainingPercent = 100;
+  snapshot.limits[2].remainingPercent = 5;
+  const lines = formatSnapshot(snapshot).split("\n").slice(1);
+
+  assert.match(lines[0], /残量 76\.5%  \/ リセット/);
+  assert.match(lines[1], /残量 100\.0% \/ リセット/);
+  assert.match(lines[2], /残量 5\.0%   \/ リセット/);
+  // 全角を含む行でも、各区切りの表示位置が全行で一致する
+  for (const separator of [" / ", " 残量 ", " / リセット"]) {
+    const positions = lines.map((line) => displayWidth(line.slice(0, line.indexOf(separator))));
+    assert.equal(new Set(positions).size, 1, `${separator} の位置: ${positions}`);
+  }
 });
 
 test("通知閾値を指定すると取得日時行に閾値とMac 通知センター方式を含める", () => {
@@ -94,4 +113,37 @@ test("JSON出力はsnapshotを1行でそのまま表現する", () => {
   const output = formatJson(snapshot);
   assert.equal(output.includes("\n"), false);
   assert.deepEqual(JSON.parse(output), snapshot);
+});
+
+test("resetCredits があれば利用可能なクレジットを期限順に1行で表示する", () => {
+  const snapshot = snapshotWithDurations([300]);
+  snapshot.resetCredits = {
+    availableCount: 2,
+    credits: [
+      { title: null, resetType: "codexRateLimits", status: "available", grantedAt: null, expiresAt: "2026-10-23T12:00:00.000Z" },
+      { title: "Used", resetType: "codexRateLimits", status: "used", grantedAt: null, expiresAt: "2026-10-01T00:00:00.000Z" },
+      { title: "Full reset", resetType: "codexRateLimits", status: "available", grantedAt: null, expiresAt: "2026-10-22T12:00:00.000Z" },
+    ],
+  };
+  const lines = formatSnapshot(snapshot).split("\n");
+
+  assert.equal(lines.length, 3);
+  assert.match(
+    lines[2],
+    /^リセットクレジット: 利用可能 2件（Full reset \/ 期限 2026-10-22 [^、]+、codexRateLimits \/ 期限 2026-10-23 [^）]+）$/,
+  );
+});
+
+test("利用可能なクレジットがなければ件数だけ表示し、resetCredits がなければ行を出さない", () => {
+  const snapshot = snapshotWithDurations([300]);
+  assert.doesNotMatch(formatSnapshot(snapshot), /リセットクレジット/);
+
+  snapshot.resetCredits = { availableCount: 0, credits: [] };
+  assert.equal(formatSnapshot(snapshot).split("\n")[2], "リセットクレジット: 利用可能 0件");
+
+  snapshot.limits = [];
+  assert.deepEqual(formatSnapshot(snapshot).split("\n").slice(1), [
+    "表示可能な利用制限は返されませんでした。",
+    "リセットクレジット: 利用可能 0件",
+  ]);
 });

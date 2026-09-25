@@ -1,3 +1,4 @@
+import { alignColumns } from "./align-columns.mjs";
 function percent(value) {
     return `${Number.isInteger(value) ? value : value.toFixed(1)}%`;
 }
@@ -18,6 +19,10 @@ function duration(value) {
         return `${value / 60}時間`;
     }
     return `${value}分`;
+}
+/** 人向け表示の残量。桁をそろえるため常に小数1桁で表す。 */
+function fixedPercent(value) {
+    return `${value.toFixed(1)}%`;
 }
 function formatDateTime(isoString) {
     if (isoString === null || isoString === undefined) {
@@ -50,13 +55,17 @@ export function formatClaudeSnapshot(snapshot, stale, notifyBelow = undefined, n
     if (snapshot.limits.length === 0) {
         lines.push("表示可能な利用制限の情報がありません。");
     }
-    for (const limit of snapshot.limits) {
-        lines.push(
-            `${label(limit)} / ${limit.window} / ${duration(limit.windowDurationMins)}: ` +
-            `残量 ${percent(limit.remainingPercent)}（使用 ${percent(limit.usedPercent)}）` +
-            `/ リセット ${formatDateTime(limit.resetsAt)}`,
-        );
-    }
+    lines.push(...alignColumns(snapshot.limits.map((limit) => [
+        label(limit),
+        " / ",
+        limit.window,
+        " / ",
+        `${duration(limit.windowDurationMins)}:`,
+        " 残量 ",
+        fixedPercent(limit.remainingPercent),
+        " / リセット ",
+        formatDateTime(limit.resetsAt),
+    ])));
     if (stale) {
         lines.push("※ 最新データが取得できていません");
     }

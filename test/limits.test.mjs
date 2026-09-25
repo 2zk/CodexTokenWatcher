@@ -194,3 +194,47 @@ test("JSON化したsnapshotは固定schemaとISO日時を保つ", () => {
   ]);
   assert.match(json.limits[0].resetsAt, /^\d{4}-\d{2}-\d{2}T/);
 });
+
+test("rateLimitResetCredits を読み、日時をISOへ正規化する", () => {
+  const snapshot = normalizeRateLimits(
+    {
+      rateLimitsByLimitId: {},
+      rateLimitResetCredits: {
+        availableCount: 1,
+        credits: [
+          {
+            id: "ignored",
+            resetType: "codexRateLimits",
+            status: "available",
+            grantedAt: 1_790_109_488,
+            expiresAt: 1_792_701_488,
+            title: "Full reset",
+            description: "ignored",
+          },
+          "invalid",
+        ],
+      },
+    },
+    observedAt,
+  );
+
+  assert.deepEqual(snapshot.resetCredits, {
+    availableCount: 1,
+    credits: [
+      {
+        title: "Full reset",
+        resetType: "codexRateLimits",
+        status: "available",
+        grantedAt: "2026-09-22T20:38:08.000Z",
+        expiresAt: "2026-10-22T20:38:08.000Z",
+      },
+    ],
+  });
+});
+
+test("rateLimitResetCredits がなければ resetCredits を含めない", () => {
+  for (const value of [undefined, null, [], "x"]) {
+    const snapshot = normalizeRateLimits({ rateLimitsByLimitId: {}, rateLimitResetCredits: value }, observedAt);
+    assert.equal("resetCredits" in snapshot, false);
+  }
+});

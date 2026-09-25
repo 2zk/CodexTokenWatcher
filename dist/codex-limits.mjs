@@ -70,15 +70,47 @@ function readLegacyRateLimits(value) {
     }
     return Object.entries(value).flatMap(([limitId, bucket]) => readBucket(bucket, limitId));
 }
+function isoOrNull(value) {
+    const seconds = asEpochSeconds(value);
+    if (seconds === null) {
+        return null;
+    }
+    const date = new Date(seconds * 1000);
+    return Number.isNaN(date.getTime()) ? null : date.toISOString();
+}
+/** rateLimitResetCredits（利用制限の無料リセット権）を読む。形式が不明なら undefined。 */
+function readResetCredits(value) {
+    if (!isRecord(value)) {
+        return undefined;
+    }
+    const credits = Array.isArray(value.credits)
+        ? value.credits.filter(isRecord).map((credit) => ({
+            title: stringOrNull(credit.title),
+            resetType: stringOrNull(credit.resetType),
+            status: stringOrNull(credit.status),
+            grantedAt: isoOrNull(credit.grantedAt),
+            expiresAt: isoOrNull(credit.expiresAt),
+        }))
+        : [];
+    return {
+        availableCount: numberOrNull(value.availableCount),
+        credits,
+    };
+}
 /** app-server の未知フィールドは無視し、表示に必要な安定フィールドだけを読む。 */
 export function normalizeRateLimits(result, observedAt = new Date()) {
     const record = isRecord(result) ? result : {};
     const limits = "rateLimitsByLimitId" in record
         ? readRateLimitsByLimitId(record.rateLimitsByLimitId)
         : readLegacyRateLimits(record.rateLimits);
-    return {
+    const snapshot = {
         schemaVersion: 1,
         observedAt: observedAt.toISOString(),
         limits,
     };
+    const resetCredits = readResetCredits(record.rateLimitResetCredits);
+    if (resetCredits !== undefined) {
+        snapshot.resetCredits = resetCredits;
+    }
+    return snapshot;
 }

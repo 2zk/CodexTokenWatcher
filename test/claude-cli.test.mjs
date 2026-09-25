@@ -471,7 +471,7 @@ test("one-shot auto: モデル別の週次制限を表示し --filter で絞り�
         });
         const text = await captureStdoutAsync(() => runCli([], { fetchSnapshot: async () => snapshot }));
         assert.equal(text.code, 0);
-        assert.match(text.stdout, /Claude Fable \/ seven_day \/ 7日（週次）: 残量 95%（使用 5%）/);
+        assert.match(text.stdout, /Claude Fable \/ seven_day \/ 7日（週次）: 残量 95\.0% \/ リセット/);
         const filtered = await captureStdoutAsync(() => runCli(["--json", "--filter", "fable"], {
             fetchSnapshot: async () => snapshot,
         }));
@@ -494,7 +494,7 @@ test("one-shot auto: API 失敗時は警告してキャッシュを表示する"
         }));
         assert.equal(code, 0);
         assert.match(stderr, /警告: API 失敗 キャッシュの値を表示します。/);
-        assert.match(stdout, /残量 60%/);
+        assert.match(stdout, /残量 60\.0%/);
     } finally {
         try { rmSync(cachePath); } catch {}
         _setCachePath(null);
