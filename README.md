@@ -1,6 +1,6 @@
 # codex-token-watcher
 
-Codex の app-server から、現在表示できる利用制限の残量を取得する macOS 向け Node.js CLI。
+Codex の app-server から、現在表示できる利用制限の残量を取得する macOS 向け Node.js CLI。残量が減ったときは、Mac 通知センターまたはポップアップウィンドウで通知できる。
 
 `primary` と `secondary` を含め、app-server が返したすべての制限期間を表示する。返されなかった期間を推測して表示することはない。
 
