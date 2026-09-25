@@ -56,7 +56,7 @@ export class CodexAppServer extends EventEmitter {
         });
         try {
             await this.request("initialize", {
-                clientInfo: { name: "codex-token-watcher", version: "0.1.0" },
+                clientInfo: { name: "token-watcher-codex", version: "0.1.0" },
                 capabilities: {},
             });
             this.notify("initialized", {});

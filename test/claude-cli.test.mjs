@@ -359,7 +359,7 @@ test("--statusline は CLI プロセスで stdin を読んでキャッシュし�
         assert.equal(oneShotResult.code, 0);
         assert.equal(JSON.parse(oneShotResult.stdout).limits[0].remainingPercent, 70);
 
-        const cacheDir = join(isolatedTmpDir, `claude-token-watcher-${process.getuid()}`);
+        const cacheDir = join(isolatedTmpDir, `token-watcher-claude-${process.getuid()}`);
         assert.equal(statSync(cacheDir).mode & 0o077, 0);
         assert.equal(statSync(join(cacheDir, "cache.json")).mode & 0o077, 0);
 

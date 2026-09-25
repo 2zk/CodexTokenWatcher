@@ -1,5 +1,5 @@
 import { CliUsageError } from "./types.mjs";
-const HELP = `使い方: codex-token-watcher [options]
+const HELP = `使い方: token-watcher-codex [options]
 
 オプション:
   --watch                    Ctrl+C まで定期的に取得する

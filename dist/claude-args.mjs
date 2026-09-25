@@ -1,6 +1,6 @@
 import { CliUsageError } from "./types.mjs";
 
-const HELP = `使い方: claude-token-watcher [options]
+const HELP = `使い方: token-watcher-claude [options]
 
 オプション:
   --statusline               Claude Code の statusLine JSON を stdin から読み、キャッシュして残量を出力する

@@ -5,7 +5,7 @@ import { join } from "node:path";
 const fixtureUrl = new URL("../fixtures/fake-app-server.mjs", import.meta.url).href;
 
 export async function createFakeCodex(testContext, scenario) {
-  const directory = await mkdtemp(join(tmpdir(), "codex-token-watcher-test-"));
+  const directory = await mkdtemp(join(tmpdir(), "token-watcher-codex-test-"));
   const executablePath = join(directory, "fake-codex");
   const capturePath = join(directory, "events.jsonl");
   const source = `#!/usr/bin/env node

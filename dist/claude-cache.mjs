@@ -17,7 +17,7 @@ function defaultCacheDir() {
     const uid = typeof process.getuid === "function"
         ? String(process.getuid())
         : (process.env.USER ?? "default");
-    return join(tmpdir(), `claude-token-watcher-${uid}`);
+    return join(tmpdir(), `token-watcher-claude-${uid}`);
 }
 
 export function cachePath() {
