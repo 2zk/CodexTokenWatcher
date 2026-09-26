@@ -324,3 +324,18 @@ test("notificationのexecutor失敗はMac 通知センター方式の警告に�
     "Mac 通知センター通知を表示できませんでした。監視は継続します: synthetic executor failure",
   ]);
 });
+
+test("notifyExclude に部分一致する制限は通知せず、他の制限は通知する", async () => {
+  const recorder = recordingExecutor();
+  const notifier = new ThresholdNotifier(20, () => {}, recorder.execute, "popup", undefined, "Claude 利用制限", ["CLAUDE / five_hour"]);
+
+  await notifier.observe(makeSnapshot(
+    makeLimit({ limitId: "claude", limitName: "Claude", window: "five_hour", remainingPercent: 10 }),
+    makeLimit({ limitId: "claude", limitName: "Claude", window: "seven_day", remainingPercent: 10 }),
+    makeLimit({ limitId: "claude-fable", limitName: "Claude Fable", window: "five_hour", remainingPercent: 10 }),
+  ));
+
+  assert.equal(recorder.calls.length, 2);
+  assert.match(recorder.calls[0].args[2], /^Claude \/ seven_day:/);
+  assert.match(recorder.calls[1].args[2], /^Claude Fable \/ five_hour:/);
+});

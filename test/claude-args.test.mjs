@@ -71,6 +71,12 @@ test("--filter テキストを受け付ける", () => {
     assert.equal(result.options.filter, "five_hour");
 });
 
+test("--notify-exclude を複数指定でき、既定は空配列", () => {
+    assert.deepEqual(parseArgs([]).options.notifyExclude, []);
+    const result = parseArgs(["--notify-exclude", "Claude / five_hour", "--notify-exclude", "fable"]);
+    assert.deepEqual(result.options.notifyExclude, ["Claude / five_hour", "fable"]);
+});
+
 test("--notify-below 20 を受け付ける", () => {
     const result = parseArgs(["--notify-below", "20"]);
     assert.equal(result.options.notifyBelow, 20);
@@ -163,6 +169,7 @@ test("値が必要なオプションに値なしはエラー", () => {
     assert.throws(() => parseArgs(["--notify-below"]), CliUsageError);
     assert.throws(() => parseArgs(["--notify-every"]), CliUsageError);
     assert.throws(() => parseArgs(["--notify-method"]), CliUsageError);
+    assert.throws(() => parseArgs(["--notify-exclude"]), CliUsageError);
 });
 
 // --- helpText ---

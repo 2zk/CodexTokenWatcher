@@ -27,7 +27,7 @@ function writeResult(snapshot, options) {
     if (options.watch && process.stdout.isTTY) {
         process.stdout.write("\x1B[2J\x1B[H");
     }
-    process.stdout.write(`${formatSnapshot(snapshot, options.notifyBelow, options.notifyMethod, options.notifyEvery)}\n`);
+    process.stdout.write(`${formatSnapshot(snapshot, options.notifyBelow, options.notifyMethod, options.notifyEvery, options.notifyExclude)}\n`);
 }
 function reportError(error) {
     const message = error instanceof Error ? error.message : String(error);
@@ -151,7 +151,7 @@ export async function runCli(args) {
     }
     const options = parsed.options;
     const server = new CodexAppServer(options.codexBin, options.timeoutSeconds * 1_000);
-    const notifier = new ThresholdNotifier(options.notifyBelow, (message) => process.stderr.write(`警告: ${message}\n`), undefined, options.notifyMethod, options.notifyEvery);
+    const notifier = new ThresholdNotifier(options.notifyBelow, (message) => process.stderr.write(`警告: ${message}\n`), undefined, options.notifyMethod, options.notifyEvery, undefined, options.notifyExclude);
     if (options.json && (options.notifyBelow !== undefined || options.notifyEvery !== undefined)) {
         const method = options.notifyMethod === "popup" ? "ポップアップ" : "Mac 通知センター";
         const settings = [];
@@ -161,7 +161,8 @@ export async function runCli(args) {
         if (options.notifyEvery !== undefined) {
             settings.push(`${options.notifyEvery}% 毎`);
         }
-        process.stderr.write(`通知設定: 残量 ${settings.join(" + ")} / ${method}\n`);
+        const exclude = options.notifyExclude.length === 0 ? "" : ` / 除外: ${options.notifyExclude.join(", ")}`;
+        process.stderr.write(`通知設定: 残量 ${settings.join(" + ")} / ${method}${exclude}\n`);
     }
     let stopping = false;
     let exitCode = 0;

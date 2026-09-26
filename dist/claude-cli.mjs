@@ -38,7 +38,7 @@ function writeResult(snapshot, stale, options) {
         process.stdout.write("\x1B[2J\x1B[H");
     }
     process.stdout.write(
-        `${formatClaudeSnapshot(snapshot, stale, options.notifyBelow, options.notifyMethod, options.notifyEvery)}\n`,
+        `${formatClaudeSnapshot(snapshot, stale, options.notifyBelow, options.notifyMethod, options.notifyEvery, options.notifyExclude)}\n`,
     );
 }
 
@@ -336,6 +336,7 @@ export async function runCli(args, dependencies = {}) {
         options.notifyMethod,
         options.notifyEvery,
         "Claude 利用制限",
+        options.notifyExclude,
     );
 
     if (options.json && (options.notifyBelow !== undefined || options.notifyEvery !== undefined)) {
@@ -347,7 +348,8 @@ export async function runCli(args, dependencies = {}) {
         if (options.notifyEvery !== undefined) {
             settings.push(`${options.notifyEvery}% 毎`);
         }
-        process.stderr.write(`通知設定: 残量 ${settings.join(" + ")} / ${method}\n`);
+        const exclude = options.notifyExclude.length === 0 ? "" : ` / 除外: ${options.notifyExclude.join(", ")}`;
+        process.stderr.write(`通知設定: 残量 ${settings.join(" + ")} / ${method}${exclude}\n`);
     }
 
     let stopping = false;

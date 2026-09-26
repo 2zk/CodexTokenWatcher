@@ -181,6 +181,9 @@ test("Claude の通知設定を短く表示する", () => {
 
     const combined = formatClaudeSnapshot(snapshot, false, 10, "notification", 5);
     assert.match(combined.split("\n")[0], /^最終受信日時: [^\n]+【通知設定: 残量 10% 以下 \+ 5% 毎 \/ Mac 通知センター】$/);
+
+    const excluded = formatClaudeSnapshot(snapshot, false, undefined, "popup", 10, ["claude / five_hour"]);
+    assert.match(excluded.split("\n")[0], /^最終受信日時: [^\n]+【通知設定: 残量 10% 毎 \/ ポップアップ \/ 除外: claude \/ five_hour】$/);
 });
 
 test("one-shot: キャッシュなしはエラー + 終了コード 1", async () => {

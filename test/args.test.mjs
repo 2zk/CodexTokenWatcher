@@ -14,6 +14,7 @@ test("引数なしの既定値は one-shot、interval 180秒、popup通知、tim
       notifyBelow: undefined,
       notifyEvery: undefined,
       notifyMethod: "popup",
+      notifyExclude: [],
       codexBin: "codex",
       timeoutSeconds: 15,
     },
@@ -23,6 +24,13 @@ test("引数なしの既定値は one-shot、interval 180秒、popup通知、tim
 
 test("filter は指定した文字列を保持する", () => {
   assert.equal(parseArgs(["--filter", "codex / primary"]).options.filter, "codex / primary");
+});
+
+test("notify-exclude は複数指定を順に保持する", () => {
+  assert.deepEqual(
+    parseArgs(["--notify-exclude", "codex / primary", "--notify-exclude", "secondary"]).options.notifyExclude,
+    ["codex / primary", "secondary"],
+  );
 });
 
 test("interval は60以上の整数を受理する", () => {
@@ -49,6 +57,7 @@ test("timeout、通知閾値、codex-bin を解釈する", () => {
       notifyBelow: 0,
       notifyEvery: undefined,
       notifyMethod: "popup",
+      notifyExclude: [],
       codexBin: "/tmp/fake-codex",
       timeoutSeconds: 1,
     },
@@ -93,6 +102,7 @@ for (const args of [
   ["--timeout", "--json"],
   ["--codex-bin"],
   ["--filter"],
+  ["--notify-exclude"],
   ["--notify-method"],
   ["--notify-method", "banner"],
 ]) {

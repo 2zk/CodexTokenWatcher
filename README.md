@@ -74,6 +74,9 @@ Codex の app-server から、現在表示できる利用制限の残量を取�
 
 # 固定閾値と刻み通知を併用する
 ./token-watcher-codex --watch --notify-below 30 --notify-every 20
+
+# primary は表示したまま通知だけ止める
+./token-watcher-codex --watch --notify-every 20 --notify-exclude "codex / primary"
 ```
 
 `--interval` は 60 以上の整数だけを受け付け、既定は 180 秒。`--timeout` は正整数だけを受け付ける。利用量取得に失敗した場合は 10 秒、20 秒、30 秒後に計 3 回再試行し、初回を含む最大 4 回がすべて失敗した場合は既存どおりエラー終了する。`--notify-below` は 0〜100 の整数、`--notify-every` は 1〜99 の整数を受け付ける。
@@ -97,6 +100,8 @@ codex / primary / 7日（週次）: 残量 30.0% / リセット 2026-09-28 17:42
 `--notify-below <percent>` を指定すると、残量が指定値以下になったときに `osascript` で通知する。`--notify-method <popup|notification>` で通知方式を選べ、既定は `popup`。
 
 `--notify-every <percent>` を指定すると、100% から指定値を繰り返し引いた正の段階ごとに通知する。たとえば `--notify-every 20` の通知段階は 80%、60%、40%、20% となる。`--notify-below` と併用した場合は両方の閾値の和集合を使い、同じ段階は1回だけ通知する。
+
+`--notify-exclude <text>` を指定すると、`--filter` と同じ規則（表示名と期間を連結した文字列への大文字・小文字を区別しない部分一致）で一致する制限を通知対象から外す。表示と JSON/NDJSON には残る。複数回指定でき、いずれかに一致すれば通知しない。指定した除外は通知設定の表示に「除外: …」として併記される。
 
 ```sh
 # 閉じるまで残るポップアップ（既定）
@@ -200,6 +205,9 @@ statusLine はターミナル版 Claude Code の対話画面でだけ実行さ�
 
 # 固定閾値と刻み通知を併用する
 ./token-watcher-claude --watch --notify-below 30 --notify-every 20
+
+# 5時間の制限は表示したまま通知だけ止める（Claude Fable などモデル別の制限には一致しない）
+./token-watcher-claude --watch --notify-every 10 --notify-exclude "claude / five_hour"
 ```
 
 通知の動作は `token-watcher-codex` の「[通知](#通知)」と同じ。

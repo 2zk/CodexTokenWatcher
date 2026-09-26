@@ -56,23 +56,31 @@ export class ThresholdNotifier {
     method;
     notifyEvery;
     title;
+    notifyExclude;
     states = new Map();
     hasWarned = false;
-    constructor(threshold, warn, execute = defaultNotificationExecutor, method = "popup", notifyEvery = undefined, title = "Codex 利用制限") {
+    constructor(threshold, warn, execute = defaultNotificationExecutor, method = "popup", notifyEvery = undefined, title = "Codex 利用制限", notifyExclude = []) {
         this.threshold = threshold;
         this.warn = warn;
         this.execute = execute;
         this.method = method;
         this.notifyEvery = notifyEvery;
         this.title = title;
+        this.notifyExclude = notifyExclude.map((pattern) => pattern.toLowerCase());
     }
     async observe(snapshot) {
         if (this.threshold === undefined && this.notifyEvery === undefined)
             return;
         const observedAtEpochSeconds = Date.parse(snapshot.observedAt) / 1_000;
         for (const limit of snapshot.limits) {
+            if (this.isExcluded(limit))
+                continue;
             await this.maybeNotify(limit, observedAtEpochSeconds);
         }
+    }
+    isExcluded(limit) {
+        const name = `${limit.limitName ?? limit.limitId} / ${limit.window}`.toLowerCase();
+        return this.notifyExclude.some((pattern) => name.includes(pattern));
     }
     async maybeNotify(limit, observedAtEpochSeconds) {
         const key = `${limit.limitId}:${limit.window}`;
